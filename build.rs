@@ -8,7 +8,7 @@ use std::{
 
 use walkdir::WalkDir;
 
-const SHADER_MINIFIER_VERSION: &'static str = "1.5.0";
+const SHADER_MINIFIER_VERSION: &'static str = "1.6.0";
 
 fn shader_minifier_path() -> PathBuf {
     Path::new(&env::var_os("CARGO_MANIFEST_DIR").unwrap())
@@ -52,7 +52,7 @@ fn minify_shaders() {
                 .to_str()
                 .unwrap(),
         ])
-        .args(["--format", "rust"])
+        .args([ "--aggressive-inlining", "--format", "rust"])
         .args(sources.iter().map(|x| x.as_os_str()))
         .output()
         .unwrap();
