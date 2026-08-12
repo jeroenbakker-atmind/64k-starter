@@ -83,8 +83,19 @@ unsafe fn create_device() -> HDC {
 
 unsafe extern "C" fn wavesabre_device_factory(id: DeviceId) -> Device {
     match id {
+        DeviceId::Falcon => wavesabre_rs::device::falcon(),
         DeviceId::Slaughter => wavesabre_rs::device::slaughter(),
-        _ => panic!(),
+        DeviceId::Thunder => wavesabre_rs::device::thunder(),
+        DeviceId::Scissor => wavesabre_rs::device::scissor(),
+        DeviceId::Leveller => wavesabre_rs::device::leveller(),
+        DeviceId::Crusher => wavesabre_rs::device::crusher(),
+        DeviceId::Echo => wavesabre_rs::device::echo(),
+        DeviceId::Smasher => wavesabre_rs::device::smasher(),
+        DeviceId::Chamber => wavesabre_rs::device::chamber(),
+        DeviceId::Twister => wavesabre_rs::device::twister(),
+        DeviceId::Cathedral => wavesabre_rs::device::cathedral(),
+        DeviceId::Adultery => wavesabre_rs::device::adultery(),
+        DeviceId::Specimen => wavesabre_rs::device::specimen(),
     }
 }
 

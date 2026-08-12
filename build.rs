@@ -62,7 +62,15 @@ fn minify_shaders() {
     }
 }
 
+fn is_windows() -> bool {
+    env::var("CARGO_CFG_TARGET_OS").map(|o| o == "windows").unwrap_or(false)
+}
+
 fn main() {
+    if !is_windows() {
+        return;
+    }
+
     ensure_shader_minifier_exists();
     minify_shaders();
 

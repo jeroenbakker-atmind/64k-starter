@@ -3,6 +3,11 @@ name = "starter"
 version = "0.1.0"
 edition = "2021"
 
+# The music tooling library lives in src-song/ and is only used by the dev
+# examples; the 64k executable (src/main.rs) is built from src/ alone.
+[lib]
+path = "src-song/lib.rs"
+
 [profile.dev]
 panic = "abort"
 
@@ -29,7 +34,7 @@ features = [
     "critical-section"
 ]
 
-[dependencies.wavesabre-rs]
+[target.'cfg(windows)'.dependencies.wavesabre-rs]
 git = "https://github.com/Kwarf/wavesabre-rs.git"
 
 [dependencies.windows-sys]
