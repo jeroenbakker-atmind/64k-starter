@@ -123,7 +123,17 @@ pub fn chunk_params(chunk: &[u8]) -> Vec<f32> {
     params
 }
 
+/// Encodes an envelope time in milliseconds to the normalized scalar WaveSabre
+/// devices expect (`Helpers::ScalarToEnvValue`: `ms = scalar^2 * 5000 + 1`).
+/// Shared by every device with ADSR time params (Adultery, Falcon, ...).
+pub fn env_ms(ms: f32) -> f32 {
+    ((ms - 1.0) / 5000.0).max(0.0).sqrt()
+}
+
 /// Adultery (GM sample player) parameters in index order, see `Adultery.h`.
+///
+/// Enum-valued params are normalized 0..1 across their enum range
+/// (`(int)(value * (numValues - 1))`), which matters when numValues > 2:
 #[derive(Clone, Copy, Debug)]
 pub struct Adultery {
     pub sample_index: f32, // 1-based (1..495); 0 = no sample
@@ -132,7 +142,10 @@ pub struct Adultery {
     pub amp_sustain: f32,
     pub amp_release: f32,
     pub sample_start: f32,
+    /// Normalized over `LoopMode { Disabled=0, Repeat=1, PingPong=2 }`:
+    /// 0.0 = disabled, **0.5 = repeat**, 1.0 = ping-pong.
     pub loop_mode: f32,
+    /// Normalized over `LoopBoundaryMode { FromSample=0, Manual=1 }`.
     pub loop_boundary_mode: f32,
     pub loop_start: f32,
     pub loop_length: f32,
@@ -165,7 +178,7 @@ impl Default for Adultery {
             amp_sustain: 1.0,
             amp_release: Adultery::env_ms(3000.0),
             sample_start: 0.0,
-            loop_mode: 1.0,        // Repeat
+            loop_mode: 0.5,          // Repeat (see field docs: 0.5 of 3 modes)
             loop_boundary_mode: 0.0, // FromSample (use DLS loop points)
             loop_start: 0.0,
             loop_length: 1.0,
@@ -192,10 +205,9 @@ impl Default for Adultery {
 }
 
 impl Adultery {
-    /// Encodes envelope time in ms to the scalar used by `ScalarToEnvValue`
-    /// (`ms = scalar^2 * 5000 + 1`).
+    /// Encodes envelope time in ms; see the module-level [`env_ms`].
     pub fn env_ms(ms: f32) -> f32 {
-        ((ms - 1.0) / 5000.0).max(0.0).sqrt()
+        env_ms(ms)
     }
 
     pub fn to_params(&self) -> [f32; 28] {
@@ -226,6 +238,154 @@ impl Adultery {
             self.voices_detune,
             self.voices_pan,
             self.master,
+            self.voice_mode,
+            self.slide_time,
+        ]
+    }
+
+    pub fn chunk(&self) -> Vec<u8> {
+        build_chunk(&self.to_params())
+    }
+}
+
+/// Falcon (2-operator FM synth) parameters in index order, see `Falcon.h`.
+///
+/// Signal path: osc1 (modulator) feeds osc2 (carrier) via `feed_forward`; only
+/// osc2 is audible. Value semantics from `Falcon.cpp`:
+///
+/// - `*_waveform`: raw 0..1 blend, 0 = pure sine, 1 = sine + square partials.
+/// - `*_ratio_coarse`: frequency ratio = `1 + floor(coarse * 32.99) +
+///   ((fine - 0.5) * 2)^3`, so coarse quantizes to integer ratio offsets
+///   0..32 above unity and fine sweeps ±1 with a cubic curve.
+/// - `osc1_feedback` / `osc2_feedback`: self-FM index = `v^2 / 2` (osc2's is
+///   additionally scaled by 13.25 internally), so small values already bite.
+/// - `osc1_feed_forward`: FM index from osc1 into osc2 = `v^2` (times osc1's
+///   hot 13.25x output), so moderate values give classic FM brightness.
+/// - Envelope times use [`env_ms`]; sustains are raw levels.
+/// - `master_level`: perceived gain `(v * 0.4)^2`, i.e. quadratic falloff.
+/// - `pitch_env_amt1/2`: semitones = `(value - 0.5) * 72` (±36 range).
+#[derive(Clone, Copy, Debug)]
+pub struct Falcon {
+    pub osc1_waveform: f32,
+    pub osc1_ratio_coarse: f32,
+    pub osc1_ratio_fine: f32,
+    pub osc1_feedback: f32,
+    pub osc1_feed_forward: f32,
+    pub osc1_attack: f32,
+    pub osc1_decay: f32,
+    pub osc1_sustain: f32,
+    pub osc1_release: f32,
+    pub osc2_waveform: f32,
+    pub osc2_ratio_coarse: f32,
+    pub osc2_ratio_fine: f32,
+    pub osc2_feedback: f32,
+    pub osc2_attack: f32,
+    pub osc2_decay: f32,
+    pub osc2_sustain: f32,
+    pub osc2_release: f32,
+    pub master_level: f32,
+    pub voices_unisono: f32,
+    pub voices_detune: f32,
+    pub voices_pan: f32,
+    pub vibrato_freq: f32,
+    pub vibrato_amount: f32,
+    pub rise: f32,
+    pub pitch_attack: f32,
+    pub pitch_decay: f32,
+    pub pitch_sustain: f32,
+    pub pitch_release: f32,
+    pub pitch_env_amt1: f32,
+    pub pitch_env_amt2: f32,
+    pub voice_mode: f32,
+    pub slide_time: f32,
+}
+
+impl Default for Falcon {
+    fn default() -> Self {
+        Falcon {
+            osc1_waveform: 0.0,
+            osc1_ratio_coarse: 0.0,
+            osc1_ratio_fine: 0.5,
+            osc1_feedback: 0.0,
+            osc1_feed_forward: 0.0,
+            osc1_attack: env_ms(1.0),
+            osc1_decay: env_ms(1.0),
+            osc1_sustain: 1.0,
+            osc1_release: env_ms(1.0),
+            osc2_waveform: 0.0,
+            osc2_ratio_coarse: 0.0,
+            osc2_ratio_fine: 0.5,
+            osc2_feedback: 0.0,
+            osc2_attack: env_ms(1.0),
+            osc2_decay: env_ms(500.0),
+            osc2_sustain: 0.75,
+            osc2_release: env_ms(500.0),
+            master_level: 0.8,
+            voices_unisono: 0.0,
+            voices_detune: 0.0,
+            voices_pan: 0.5,
+            vibrato_freq: 0.0,
+            vibrato_amount: 0.0,
+            rise: 0.0,
+            pitch_attack: env_ms(1.0),
+            pitch_decay: env_ms(500.0),
+            pitch_sustain: 0.5,
+            pitch_release: env_ms(1500.0),
+            pitch_env_amt1: 0.5,
+            pitch_env_amt2: 0.5,
+            voice_mode: 0.0, // Polyphonic
+            slide_time: 0.0,
+        }
+    }
+}
+
+impl Falcon {
+    /// Coarse param for an integer carrier/modulator frequency ratio >= 1.
+    /// `floor(coarse * 32.99)` must decode to `ratio - 1`; aiming at the
+    /// midpoint of its quantization bin keeps that robust under f32 rounding
+    /// (a bare `(ratio - 1) / 32.99` can land an ulp below and floor to the
+    /// next-lower ratio). Keep `ratio_fine` at 0.5 so its cubic term vanishes.
+    pub fn ratio_coarse(ratio: i32) -> f32 {
+        ((ratio.max(1) - 1) as f32 + 0.5) / 32.99
+    }
+
+    /// Pitch envelope amount param for `semitones` within ±36.
+    pub fn pitch_amt(semitones: f32) -> f32 {
+        semitones / 72.0 + 0.5
+    }
+
+    pub fn to_params(&self) -> [f32; 32] {
+        [
+            self.osc1_waveform,
+            self.osc1_ratio_coarse,
+            self.osc1_ratio_fine,
+            self.osc1_feedback,
+            self.osc1_feed_forward,
+            self.osc1_attack,
+            self.osc1_decay,
+            self.osc1_sustain,
+            self.osc1_release,
+            self.osc2_waveform,
+            self.osc2_ratio_coarse,
+            self.osc2_ratio_fine,
+            self.osc2_feedback,
+            self.osc2_attack,
+            self.osc2_decay,
+            self.osc2_sustain,
+            self.osc2_release,
+            self.master_level,
+            self.voices_unisono,
+            self.voices_detune,
+            self.voices_pan,
+            self.vibrato_freq,
+            self.vibrato_amount,
+            self.rise,
+            self.pitch_attack,
+            self.pitch_decay,
+            self.pitch_sustain,
+            self.pitch_release,
+            self.pitch_env_amt1,
+            self.pitch_env_amt2,
             self.voice_mode,
             self.slide_time,
         ]

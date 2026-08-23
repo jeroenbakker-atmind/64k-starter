@@ -1,5 +1,15 @@
-//! Generates `src/song.bin` - a 72-bar tune for piano, bass and drums voiced
-//! with General MIDI samples through the `Adultery` device.
+//! Generates `src/song.bin` - a 72-bar tune for piano, bass and drums.
+//!
+//! Two instrument backends are available via `--backend`:
+//!
+//! - `falcon` (default): 2-operator FM patches on WaveSabre's Falcon synth.
+//!   Fully self-contained and deterministic - no runtime sample data, so this
+//!   is the safe first target for verifying playback on Windows.
+//! - `adultery`: General MIDI samples from the runtime-loaded gm.dls bank
+//!   (`C:\Windows\System32\drivers\gm.dls`) through the `Adultery` device.
+//!   The GM sample indices in `CONFIG` below are *educated guesses*; run
+//!   `cargo run --example inspect_gm_dls` on the target Windows machine to
+//!   list the bank and adjust them, then re-run with this backend.
 //!
 //! The arrangement is an energy arc (104 bpm, driving funk-jazz). Every
 //! section is twice as long as a compact single - each 8-bar phrase is stated
@@ -24,13 +34,15 @@
 //! with two-note right-hand "answers" after each phrase, and the piano never
 //! walks the same idle groove as the bass.
 //!
-//! Usage: `cargo run --example create_song [--out <path>] [--wav] [--export-dir <path>]`
+//! Usage: `cargo run --example create_song [--backend falcon|adultery] [--out <path>] [--wav] [--export-dir <path>]`
 //!
 //! With `--wav`, a mono WAV preview and one stem WAV per instrument group
 //! (`<stem>.wav`, `<stem>.piano.wav`, `<stem>.bass.wav` and
 //! `<stem>.drums.wav`) are written to the export directory (default
 //! `export/`, override with `--export-dir`), rendered with simple
-//! sine/saw/box/partial oscillators (see `src-song/render.rs`).
+//! sine/saw/box/partial oscillators (see `src-song/render.rs`). The preview
+//! approximates the arrangement only - it does not model Falcon FM or gm.dls
+//! samples.
 //!
 //! The arrangement is composed entirely from the data below; regenerating is
 //! deterministic (byte-identical output).
@@ -39,7 +51,9 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
-use starter::format::{Adultery, DeviceId, MidiEvent, Receive, Song, Track, decode, encode};
+use starter::format::{
+    Adultery, DeviceId, Falcon, MidiEvent, Receive, Song, Track, decode, encode, env_ms,
+};
 use starter::music::Grid;
 
 // ---------------------------------------------------------------------------
@@ -62,6 +76,15 @@ const HAT_O_SAMPLE: f32 = 481.0; // percussion: open hi-hat (guess)
 const BPM: f64 = 104.0;
 const SAMPLE_RATE: i64 = 44100;
 const TAIL_SECS: f64 = 3.0;
+
+/// Which synth voices the six instrument tracks.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Backend {
+    /// Falcon 2-op FM patches (default): self-contained, no gm.dls needed.
+    Falcon,
+    /// Adultery GM sample playback; requires gm.dls on the target machine.
+    Adultery,
+}
 
 // Transposes the entire piano score down one octave (comp, melody, fills,
 // outro). The composed register above stays untouched - only the emitted
@@ -537,6 +560,45 @@ fn comp_hit(events: &mut Vec<MidiEvent>, grid: &Grid, bar: i64, hit: CompHit, no
 }
 
 fn main() {
+    // Parse CLI: --backend falcon|adultery (default falcon), --out <path>
+    // (default src/song.bin), --wav, --export-dir <path>
+    let default_out = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src/song.bin")
+        .to_string_lossy()
+        .into_owned();
+    let mut out_path = default_out.clone();
+    let default_export = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("export")
+        .to_string_lossy()
+        .into_owned();
+    let mut export_dir = default_export.clone();
+    let mut want_wav = false;
+    let mut backend = Backend::Falcon;
+
+    let mut args = env::args().skip(1).peekable();
+    while let Some(a) = args.next() {
+        match a.as_str() {
+            "--out" => out_path = args.next().expect("--out needs a path"),
+            "--wav" => want_wav = true,
+            "--export-dir" => export_dir = args.next().expect("--export-dir needs a path"),
+            "--backend" => {
+                backend = match args.next().expect("--backend needs a value").as_str() {
+                    "falcon" => Backend::Falcon,
+                    "adultery" => Backend::Adultery,
+                    other => {
+                        eprintln!("unknown backend: {other} (expected falcon or adultery)");
+                        std::process::exit(2);
+                    }
+                }
+            }
+            other => {
+                eprintln!("unknown argument: {other}");
+                eprintln!("usage: cargo run --example create_song [--backend falcon|adultery] [--out <path>] [--wav] [--export-dir <path>]");
+                std::process::exit(2);
+            }
+        }
+    }
+
     let grid = Grid::new(BPM, SAMPLE_RATE);
 
     let piano = Vec::new();
@@ -748,95 +810,35 @@ fn main() {
     // --- Assemble the song ---
     let mut song = Song::new(BPM as i32, SAMPLE_RATE as i32);
 
-    let piano_dev = {
-        let mut a = Adultery::default();
-        a.sample_index = PIANO_SAMPLE;
-        a.amp_attack = Adultery::env_ms(2.0);
-        a.amp_decay = Adultery::env_ms(700.0);
-        a.amp_sustain = 0.9;
-        a.amp_release = Adultery::env_ms(2200.0);
-        a.loop_mode = 1.0; // Repeat (DLS loop points)
-        a.master = 0.75;
-        (DeviceId::Adultery, a.chunk())
-    };
-    let bass_dev = {
-        let mut a = Adultery::default();
-        a.sample_index = BASS_SAMPLE;
-        a.amp_attack = Adultery::env_ms(3.0);
-        a.amp_decay = Adultery::env_ms(450.0);
-        a.amp_sustain = 0.8;
-        a.amp_release = Adultery::env_ms(500.0);
-        a.loop_mode = 1.0;
-        a.master = 0.55;
-        (DeviceId::Adultery, a.chunk())
-    };
-    let kick_dev = {
-        let mut a = Adultery::default();
-        a.sample_index = KICK_SAMPLE;
-        a.amp_attack = Adultery::env_ms(1.0);
-        a.amp_decay = Adultery::env_ms(50.0);
-        a.amp_sustain = 0.8;
-        a.amp_release = Adultery::env_ms(150.0);
-        a.loop_mode = 0.0; // Disabled
-        a.master = 0.5;
-        (DeviceId::Adultery, a.chunk())
-    };
-    let snare_dev = {
-        let mut a = Adultery::default();
-        a.sample_index = SNARE_SAMPLE;
-        a.amp_attack = Adultery::env_ms(1.0);
-        a.amp_decay = Adultery::env_ms(60.0);
-        a.amp_sustain = 0.7;
-        a.amp_release = Adultery::env_ms(120.0);
-        a.loop_mode = 0.0;
-        a.master = 0.45;
-        (DeviceId::Adultery, a.chunk())
-    };
-    let hat_c_dev = {
-        let mut a = Adultery::default();
-        a.sample_index = HAT_C_SAMPLE;
-        a.amp_attack = Adultery::env_ms(1.0);
-        a.amp_decay = Adultery::env_ms(30.0);
-        a.amp_sustain = 0.4;
-        a.amp_release = Adultery::env_ms(80.0);
-        a.loop_mode = 0.0;
-        a.master = 0.38;
-        (DeviceId::Adultery, a.chunk())
-    };
-    let hat_o_dev = {
-        let mut a = Adultery::default();
-        a.sample_index = HAT_O_SAMPLE;
-        a.amp_attack = Adultery::env_ms(1.0);
-        a.amp_decay = Adultery::env_ms(250.0);
-        a.amp_sustain = 0.4;
-        a.amp_release = Adultery::env_ms(150.0);
-        a.loop_mode = 0.0;
-        a.master = 0.34;
-        (DeviceId::Adultery, a.chunk())
+    // One device per instrument, in [piano, bass, kick, snare, hat_c, hat_o]
+    // order.
+    let devs = match backend {
+        Backend::Falcon => fm_devices(),
+        Backend::Adultery => gm_devices(),
     };
 
     let mut track_piano = Track::new(1.0);
-    track_piano.devices.push(piano_dev);
+    track_piano.devices.push(devs[0].clone());
     track_piano.events = p.piano;
 
     let mut track_bass = Track::new(1.0);
-    track_bass.devices.push(bass_dev);
+    track_bass.devices.push(devs[1].clone());
     track_bass.events = p.bass;
 
     let mut track_kick = Track::new(1.0);
-    track_kick.devices.push(kick_dev);
+    track_kick.devices.push(devs[2].clone());
     track_kick.events = p.kick;
 
     let mut track_snare = Track::new(1.0);
-    track_snare.devices.push(snare_dev);
+    track_snare.devices.push(devs[3].clone());
     track_snare.events = p.snare;
 
     let mut track_hat_c = Track::new(1.0);
-    track_hat_c.devices.push(hat_c_dev);
+    track_hat_c.devices.push(devs[4].clone());
     track_hat_c.events = p.hat_c;
 
     let mut track_hat_o = Track::new(1.0);
-    track_hat_o.devices.push(hat_o_dev);
+    track_hat_o.devices.push(devs[5].clone());
     track_hat_o.events = p.hat_o;
 
     // Master: sums everything, no devices.
@@ -869,33 +871,6 @@ fn main() {
     song.length = last_end as f64 / SAMPLE_RATE as f64 + TAIL_SECS;
 
     let data = encode(&song);
-
-    // Parse CLI: --out <path> (default src/song.bin), --wav, --export-dir <path>
-    let default_out = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/song.bin")
-        .to_string_lossy()
-        .into_owned();
-    let mut out_path = default_out.clone();
-    let default_export = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("export")
-        .to_string_lossy()
-        .into_owned();
-    let mut export_dir = default_export.clone();
-    let mut want_wav = false;
-
-    let mut args = env::args().skip(1).peekable();
-    while let Some(a) = args.next() {
-        match a.as_str() {
-            "--out" => out_path = args.next().expect("--out needs a path"),
-            "--wav" => want_wav = true,
-            "--export-dir" => export_dir = args.next().expect("--export-dir needs a path"),
-            other => {
-                eprintln!("unknown argument: {other}");
-                eprintln!("usage: cargo run --example create_song [--out <path>] [--wav] [--export-dir <path>]");
-                std::process::exit(2);
-            }
-        }
-    }
 
     fs::write(&out_path, &data).expect("failed to write song.bin");
 
@@ -949,21 +924,214 @@ fn main() {
     // Summary
     println!("wrote {} ({} bytes)", out_path, data.len());
     println!(
-        "tempo {} bpm | length {:.2}s | {} bars",
+        "tempo {} bpm | length {:.2}s | {} bars | backend {:?}",
         BPM as i32,
         song.length,
-        CHORDS.len()
+        CHORDS.len(),
+        backend
     );
     let names = ["piano", "bass", "kick", "snare", "hat_c", "hat_o"];
     for (i, t) in song.tracks[..6].iter().enumerate() {
         println!("  track {i}: {:<8} {} notes", names[i], t.events.iter().filter(|e| e.on).count());
     }
 
-    // Warning about the GM sample indices
-    println!("\nNOTE: the Adultery sample indices in 'CONFIG' above are guesses.");
-    println!("On the target Windows machine run:");
-    println!("    cargo run --example inspect_gm_dls");
-    println!("then update PIANO_SAMPLE/BASS_SAMPLE/KICK_SAMPLE/... and re-run this example.");
+    // Backend-specific notes
+    match backend {
+        Backend::Adultery => {
+            println!("\nNOTE: the Adultery sample indices in 'CONFIG' above are guesses.");
+            println!("On the target Windows machine run:");
+            println!("    cargo run --example inspect_gm_dls");
+            println!("then update PIANO_SAMPLE/BASS_SAMPLE/KICK_SAMPLE/... and re-run this example.");
+        }
+        Backend::Falcon => {
+            println!("\nNOTE: falcon patches are self-contained (no gm.dls needed).");
+            println!("Preview with `--wav` approximates the arrangement, not the FM timbres.");
+        }
+    }
+}
+
+/// One device per instrument in [piano, bass, kick, snare, hat_c, hat_o]
+/// order, voiced with Falcon 2-operator FM patches.
+///
+/// Falcon's signal path: osc1 (modulator) feeds osc2 (carrier) via
+/// `osc1_feed_forward`; only osc2 is audible. Ratio 1 = unity pitch; ratio N
+/// via `Falcon::ratio_coarse(N)`. Envelope times use [`env_ms`].
+fn fm_devices() -> Vec<(DeviceId, Vec<u8>)> {
+    // E-piano: ratio-2 modulator with a decaying envelope gives the bright,
+    // bell-ish attack that settles into a near-sine sustain.
+    let piano = {
+        let mut f = Falcon::default();
+        f.osc1_ratio_coarse = Falcon::ratio_coarse(2);
+        f.osc1_feedback = 0.30;
+        f.osc1_decay = env_ms(350.0);
+        f.osc1_sustain = 0.25;
+        f.osc1_feed_forward = 0.62;
+        f.osc2_waveform = 0.08;
+        f.osc2_feedback = 0.12;
+        f.osc2_decay = env_ms(1400.0);
+        f.osc2_sustain = 0.45;
+        f.osc2_release = env_ms(450.0);
+        f.master_level = 0.75;
+        (DeviceId::Falcon, f.chunk())
+    };
+    // Bass: short growl - square-edged carrier, self-feedback bite and a fast
+    // modulator that collapses to the fundamental.
+    let bass = {
+        let mut f = Falcon::default();
+        f.osc1_ratio_coarse = Falcon::ratio_coarse(2);
+        f.osc1_decay = env_ms(80.0);
+        f.osc1_sustain = 0.0;
+        f.osc1_feed_forward = 0.50;
+        f.osc2_waveform = 0.25;
+        f.osc2_feedback = 0.35;
+        f.osc2_decay = env_ms(250.0);
+        f.osc2_sustain = 0.40;
+        f.osc2_release = env_ms(90.0);
+        f.master_level = 0.68;
+        (DeviceId::Falcon, f.chunk())
+    };
+    // Kick: pure sine carrier whose pitch envelope drops ~18 semitones into
+    // the fundamental within 50 ms; no FM at all.
+    let kick = {
+        let mut f = Falcon::default();
+        f.osc2_decay = env_ms(280.0);
+        f.osc2_sustain = 0.0;
+        f.osc2_release = env_ms(60.0);
+        f.pitch_env_amt2 = Falcon::pitch_amt(18.0);
+        f.pitch_decay = env_ms(50.0);
+        f.pitch_sustain = 0.0;
+        f.pitch_release = env_ms(30.0);
+        f.master_level = 0.95;
+        (DeviceId::Falcon, f.chunk())
+    };
+    // Snare: heavy carrier self-feedback turns a tone burst into noise; a
+    // ratio-4 modulator roughens the attack.
+    let snare = {
+        let mut f = Falcon::default();
+        f.osc1_ratio_coarse = Falcon::ratio_coarse(4);
+        f.osc1_decay = env_ms(60.0);
+        f.osc1_sustain = 0.0;
+        f.osc1_feed_forward = 0.85;
+        f.osc2_feedback = 0.72;
+        f.osc2_decay = env_ms(120.0);
+        f.osc2_sustain = 0.0;
+        f.osc2_release = env_ms(80.0);
+        f.master_level = 0.70;
+        (DeviceId::Falcon, f.chunk())
+    };
+    // Closed hat: high ratios + feedback on both operators for a metallic
+    // sizzle, choked to 40 ms.
+    let hat_c = {
+        let mut f = Falcon::default();
+        f.osc1_ratio_coarse = Falcon::ratio_coarse(16);
+        f.osc1_waveform = 0.5;
+        f.osc1_decay = env_ms(30.0);
+        f.osc1_sustain = 0.0;
+        f.osc1_feed_forward = 0.90;
+        f.osc2_ratio_coarse = Falcon::ratio_coarse(8);
+        f.osc2_waveform = 0.5;
+        f.osc2_feedback = 0.80;
+        f.osc2_decay = env_ms(40.0);
+        f.osc2_sustain = 0.0;
+        f.osc2_release = env_ms(40.0);
+        f.master_level = 0.55;
+        (DeviceId::Falcon, f.chunk())
+    };
+    // Open hat: same voice, longer decay.
+    let hat_o = {
+        let mut f = Falcon::default();
+        f.osc1_ratio_coarse = Falcon::ratio_coarse(16);
+        f.osc1_waveform = 0.5;
+        f.osc1_decay = env_ms(120.0);
+        f.osc1_sustain = 0.0;
+        f.osc1_feed_forward = 0.90;
+        f.osc2_ratio_coarse = Falcon::ratio_coarse(8);
+        f.osc2_waveform = 0.5;
+        f.osc2_feedback = 0.80;
+        f.osc2_decay = env_ms(240.0);
+        f.osc2_sustain = 0.0;
+        f.osc2_release = env_ms(100.0);
+        f.master_level = 0.50;
+        (DeviceId::Falcon, f.chunk())
+    };
+    vec![piano, bass, kick, snare, hat_c, hat_o]
+}
+
+/// One device per instrument in [piano, bass, kick, snare, hat_c, hat_o]
+/// order, voiced with Adultery GM samples from the runtime-loaded gm.dls.
+///
+/// The sample indices come from `CONFIG` above and are guesses until verified
+/// against the target machine with `inspect_gm_dls`.
+fn gm_devices() -> Vec<(DeviceId, Vec<u8>)> {
+    // Piano/bass loop their DLS sample while held (loop_mode 0.5 = Repeat of
+    // {Disabled=0, Repeat=1, PingPong=2}); drums are one-shots.
+    let piano = {
+        let mut a = Adultery::default();
+        a.sample_index = PIANO_SAMPLE;
+        a.amp_attack = env_ms(2.0);
+        a.amp_decay = env_ms(700.0);
+        a.amp_sustain = 0.9;
+        a.amp_release = env_ms(2200.0);
+        a.loop_mode = 0.5; // Repeat (DLS loop points)
+        a.master = 0.75;
+        (DeviceId::Adultery, a.chunk())
+    };
+    let bass = {
+        let mut a = Adultery::default();
+        a.sample_index = BASS_SAMPLE;
+        a.amp_attack = env_ms(3.0);
+        a.amp_decay = env_ms(450.0);
+        a.amp_sustain = 0.8;
+        a.amp_release = env_ms(500.0);
+        a.loop_mode = 0.5;
+        a.master = 0.55;
+        (DeviceId::Adultery, a.chunk())
+    };
+    let kick = {
+        let mut a = Adultery::default();
+        a.sample_index = KICK_SAMPLE;
+        a.amp_attack = env_ms(1.0);
+        a.amp_decay = env_ms(50.0);
+        a.amp_sustain = 0.8;
+        a.amp_release = env_ms(150.0);
+        a.loop_mode = 0.0; // Disabled
+        a.master = 0.5;
+        (DeviceId::Adultery, a.chunk())
+    };
+    let snare = {
+        let mut a = Adultery::default();
+        a.sample_index = SNARE_SAMPLE;
+        a.amp_attack = env_ms(1.0);
+        a.amp_decay = env_ms(60.0);
+        a.amp_sustain = 0.7;
+        a.amp_release = env_ms(120.0);
+        a.loop_mode = 0.0;
+        a.master = 0.45;
+        (DeviceId::Adultery, a.chunk())
+    };
+    let hat_c = {
+        let mut a = Adultery::default();
+        a.sample_index = HAT_C_SAMPLE;
+        a.amp_attack = env_ms(1.0);
+        a.amp_decay = env_ms(30.0);
+        a.amp_sustain = 0.4;
+        a.amp_release = env_ms(80.0);
+        a.loop_mode = 0.0;
+        a.master = 0.38;
+        (DeviceId::Adultery, a.chunk())
+    };
+    let hat_o = {
+        let mut a = Adultery::default();
+        a.sample_index = HAT_O_SAMPLE;
+        a.amp_attack = env_ms(1.0);
+        a.amp_decay = env_ms(250.0);
+        a.amp_sustain = 0.4;
+        a.amp_release = env_ms(150.0);
+        a.loop_mode = 0.0;
+        a.master = 0.34;
+        (DeviceId::Adultery, a.chunk())
+    };
+    vec![piano, bass, kick, snare, hat_c, hat_o]
 }
 
 /// How much of the kit plays in a given bar.
