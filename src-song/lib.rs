@@ -6,5 +6,6 @@
 //! dev-time examples.
 
 pub mod format;
+pub mod instruments;
 pub mod music;
 pub mod render;
