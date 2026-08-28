@@ -39,10 +39,10 @@
 //! With `--wav`, a mono WAV preview and one stem WAV per instrument group
 //! (`<stem>.wav`, `<stem>.piano.wav`, `<stem>.bass.wav` and
 //! `<stem>.drums.wav`) are written to the export directory (default
-//! `export/`, override with `--export-dir`), rendered with simple
-//! sine/saw/box/partial oscillators (see `src-song/render.rs`). The preview
-//! approximates the arrangement only - it does not model Falcon FM or gm.dls
-//! samples.
+//! `export/`, override with `--export-dir`), rendered by `src-song/render.rs`.
+//! Falcon tracks use a faithful port of the FM voice, so the export matches
+//! the instrument patches; the `adultery` backend (samples that cannot be
+//! synthesized) falls back to simple sine/saw/box oscillators.
 //!
 //! The arrangement is composed entirely from the data below; regenerating is
 //! deterministic (byte-identical output).
@@ -945,7 +945,7 @@ fn main() {
         }
         Backend::Falcon => {
             println!("\nNOTE: falcon patches are self-contained (no gm.dls needed).");
-            println!("Preview with `--wav` approximates the arrangement, not the FM timbres.");
+            println!("Preview with `--wav` renders the actual Falcon FM patches.");
         }
     }
 }
