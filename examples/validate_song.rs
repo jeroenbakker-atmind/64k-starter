@@ -150,7 +150,10 @@ fn main() {
         let name = if ti == song.tracks.len() - 1 {
             "master"
         } else {
-            &["piano", "bass", "kick", "snare", "hat_c", "hat_o"][ti]
+            const LABELS: [&str; 9] = [
+                "bass", "kick", "snare", "hat_c", "hat_o", "crash", "shake", "flute", "sax",
+            ];
+            LABELS.get(ti).copied().unwrap_or("track")
         };
         println!("  track {ti} ({name}, lane {}):", t.lane_id);
         let mut cur: Option<u8> = None;

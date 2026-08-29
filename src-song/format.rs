@@ -693,17 +693,21 @@ pub fn decode(data: &[u8]) -> Result<ParsedSong, String> {
         return Err(format!("invalid lane count {}", num_lanes));
     }
     let mut lanes = Vec::with_capacity(num_lanes as usize);
-    for _ in 0..num_lanes {
+    for lane_idx in 0..num_lanes {
         let num_events = take_i32!();
         if num_events < 0 {
             return Err(format!("invalid event count {}", num_events));
         }
         let mut events = Vec::with_capacity(num_events as usize);
         let mut last = 0i64;
-        for _ in 0..num_events {
+        for ev_idx in 0..num_events {
             let delta = take_i32!();
             if delta < 0 {
-                return Err(format!("negative event delta {}", delta));
+                return Err(format!(
+                    "negative event delta {} (lane {lane_idx}, event {ev_idx}, byte {})",
+                    delta,
+                    pos - 4
+                ));
             }
             last += delta as i64;
             let note = take_u8!();

@@ -9,3 +9,5 @@ pub mod format;
 pub mod instruments;
 pub mod music;
 pub mod render;
+pub mod sabrewave;
+pub mod swingkit;

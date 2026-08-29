@@ -2,27 +2,28 @@
 //!
 //! Follows the Lyric Assistant guide "How to write electro swing songs":
 //!   - Swung groove: one grid, every part swings (long-short eighth pairs).
-//!   - Steady anchors (kick, backbeat snare, backbeat ghost) under swung
-//!     hats and lazy-quantized piano/bass/brass.
+//!   - Steady anchors (kick, backbeat snare) under swung
+//!     hats and lazy-quantized bass/brass.
 //!   - D blues harmony: Dm7 home, Gm7 iv, A7 blues seven, FM7 relative major.
 //!     Every chord stays in the blues family so melody and harmony always
 //!     agree (no borrowed dominants that fight the fixed topline).
-//!   - Arrangement recipe: Intro (piano rag motif + brass) -> Verse (spare)
-//!     -> Pre-chorus (build) -> Chorus (full brass + hook) -> Breakdown
-//!     (kick + hat) -> Final chorus with a resolve.
+//!   - Arrangement recipe: Intro (flute rag motif + brass, boogie bass) ->
+//!     Verse (spare, bass combs the chord tones) -> Pre-chorus (build) ->
+//!     Chorus (full brass + hook) -> Breakdown (kick + hat) -> Final chorus
+//!     with a resolve.
 //!   - Voice roles: the flute owns the topline; the tenor sax is a quiet
 //!     third voice with short stabs and spare call-and-response answers.
 //!
-//! Showcases the Falcon FM instruments: piano, bass, drums, flute, tenor sax.
+//! Showcases the Falcon FM instruments: bass, drums, flute, tenor sax.
 //!
-//! Usage: `cargo run --example instrument_test [--out <path>] [--wav] [--export-dir <path>]`
+//! Usage: `cargo run --example instrument_test [--out <path>]`
 
 use std::env;
 use std::fs;
 use std::path::Path;
 
-use starter::format::{decode, encode, DeviceId, MidiEvent, Receive, Song, Track};
-use starter::instruments::{bass, drums, flute, piano, saxophone};
+use starter::format::{build_chunk, encode, DeviceId, MidiEvent, Receive, Song, Track};
+use starter::instruments::{bass, drums, flute, saxophone};
 use starter::music::Grid;
 
 const BPM: f64 = 122.0;
@@ -61,7 +62,6 @@ const CHORDS: [Chord; 32] = [
 // Helpers
 // ---------------------------------------------------------------------------
 struct Parts {
-    piano: Vec<MidiEvent>,
     bass: Vec<MidiEvent>,
     kick: Vec<MidiEvent>,
     snare: Vec<MidiEvent>,
@@ -71,6 +71,7 @@ struct Parts {
     shake: Vec<MidiEvent>,
     flute: Vec<MidiEvent>,
     sax: Vec<MidiEvent>,
+    slg: Vec<MidiEvent>,
 }
 
 fn note_on_off(
@@ -138,20 +139,23 @@ fn section(bar: i64) -> &'static str {
 }
 
 // ---------------------------------------------------------------------------
-// Drums: steady anchors (kick, backbeat, ghost) with swung hats; the
-// pre-chorus/chorus add a tighter 16th-hat build. Breakdown = kick + hat.
+// Drums: steady anchors (kick, backbeat) with swung hats; 16th-hat risers
+// into each section's drop. Breakdown = kick + hat.
 // ---------------------------------------------------------------------------
 fn drums_bar(grid: &Grid, bar: i64, p: &mut Parts, intensity: u8) {
-    for beat in 0..4 {
-        let vel = if beat == 0 { 108 } else { 88 };
-        note_on_off(&mut p.kick, grid, bar, beat * 2, 1, 36, vel);
+    if matches!(section(bar), "chorus" | "outro") {
+        for beat in 0..4 {
+            let vel = if beat == 0 { 108 } else { 88 };
+            note_on_off(&mut p.kick, grid, bar, beat * 2, 1, 36, vel);
+        }
+    } else {
+        // Lighter 1 & 3 anchor outside the chorus (less busy).
+        note_on_off(&mut p.kick, grid, bar, 0, 1, 36, 104);
+        note_on_off(&mut p.kick, grid, bar, 2, 1, 36, 90);
     }
     if intensity >= 2 {
         note_on_off(&mut p.snare, grid, bar, 2, 1, 38, 86);
         note_on_off(&mut p.snare, grid, bar, 6, 1, 38, 93);
-        if intensity >= 3 {
-            note_on_off(&mut p.snare, grid, bar, 3, 1, 38, 52);
-        }
     }
     // Swung eighths: offbeats accented (the swung "&" is the groove's engine).
     for e in 0..8 {
@@ -170,8 +174,9 @@ fn drums_bar(grid: &Grid, bar: i64, p: &mut Parts, intensity: u8) {
         };
         note_on_off(&mut p.hat_c, grid, bar, e, 1, 42, vel);
     }
-    // Tighter 16th-hat build in the back half of pre-chorus and chorus bars.
-    if intensity >= 3 {
+    // 16th-hat riser only into the next section's drop.
+    const RISER_BARS: [i64; 3] = [15, 23, 31];
+    if RISER_BARS.contains(&bar) {
         for k in 0..8 {
             let t = grid.at(bar, 2) + k * grid.beat_samples / 4;
             let vel = 58 + k as u8 * 4;
@@ -181,35 +186,35 @@ fn drums_bar(grid: &Grid, bar: i64, p: &mut Parts, intensity: u8) {
     }
 }
 
-/// 16th-note snare roll into the next section's downbeat (biggie on drops).
+/// Short 16th-note snare roll into the next section's downbeat (biggie on drops).
 fn fill_bar(grid: &Grid, bar: i64, p: &mut Parts) {
-    for k in 0..8 {
+    for k in 0..4 {
         let t = grid.at(bar, 2) + k * grid.beat_samples / 4;
-        let vel = 50 + k as u8 * 8;
-        let n = if k == 7 { 36 } else { 38 };
-        let events = if k == 7 { &mut p.kick } else { &mut p.snare };
-        events.push(MidiEvent::on(t, n, if k == 7 { vel + 10 } else { vel }));
+        let vel = 58 + k as u8 * 8;
+        let n = if k == 3 { 36 } else { 38 };
+        let events = if k == 3 { &mut p.kick } else { &mut p.snare };
+        events.push(MidiEvent::on(t, n, if k == 3 { vel + 10 } else { vel }));
         events.push(MidiEvent::off(t + grid.beat_samples / 4, n));
     }
 }
 
-/// Swung shaker glue: a soft shaker riding every offbeat ("&"). This is the
-/// shuffled percussion layer that makes the swing audible over the steady
-/// kick/snare anchors (groove tip: add shaker, tambourine, or brushes).
+/// Swung shaker glue: a soft shaker riding the strong offbeats ("2&" and
+/// "4&"). This is the shuffled percussion layer that makes the swing audible
+/// over the steady kick/snare anchors (groove tip: add shaker, tambourine, or
+/// brushes).
 fn shaker_bar(grid: &Grid, bar: i64, p: &mut Parts) {
-    for e in [1i64, 3, 5, 7] {
-        let v = if e == 3 || e == 7 { 84 } else { 72 };
-        note_on_off(&mut p.shake, grid, bar, e, 1, 54, v);
+    for e in [3i64, 7] {
+        note_on_off(&mut p.shake, grid, bar, e, 1, 54, 80);
     }
 }
 
 // ---------------------------------------------------------------------------
-// Bass: D blues bounce by default; chromatic walk-downs on the "fresh"
-// middle-section bars; sparse root pulses through the breakdown.
+// Bass: D blues bounce by default, playing the piano's comp chord tones under
+// the flute; chromatic walk-downs on the "fresh" middle-section bars; sparse
+// root pulses through the breakdown.
 // ---------------------------------------------------------------------------
 fn bass_bar(grid: &Grid, bar: i64, p: &mut Parts, walk: bool, sparse: bool) {
     let (root, tones) = CHORDS[bar as usize];
-    let fifth = root + 7;
     let next_root = CHORDS[((bar + 1) % 32) as usize].0;
     let approach = if next_root > root {
         next_root - 1
@@ -231,50 +236,27 @@ fn bass_bar(grid: &Grid, bar: i64, p: &mut Parts, walk: bool, sparse: bool) {
             (4, root - 2, 1, 74),
             (6, root - 3, 1, 82),
         ];
+    } else if section(bar) == "intro" {
+        // Rag bottom: a boogie root pulse under the flute's rag riff.
+        hits = vec![
+            (0, root, 2, 82),
+            (4, root, 2, 78),
+            (6, root + 7, 1, 84),
+        ];
     } else {
-        // Swing bounce: root / 2& fifth pop / chromatic push into next root.
-        hits = vec![(0, root, 2, 86), (3, fifth, 1, 95), (7, approach, 1, 100)];
+        // The piano's comp notes live in the bass now: the root anchors the
+        // downbeat, the third answers on "2&", and the seventh rings into the
+        // next bar on "& of 4" (the old piano figure, down an octave).
+        let comp = chord_notes(root, &tones, 0);
+        hits = vec![
+            (0, root, 2, 86),
+            (3, comp[0] as i32, 1, 88),
+            (6, approach, 1, 82),
+            (7, comp[2] as i32, 2, 84),
+        ];
     }
     for (e, n, dur, vel) in hits.drain(..) {
         note_on_off_h(&mut p.bass, grid, bar, e, dur, n as u8, vel);
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Piano: ragtime motif on the intro (the "Ragtime Flip"), then a swung comp
-// (chords on "2&" and a ringing "& of 4"). Quiet in the breakdown.
-// ---------------------------------------------------------------------------
-fn piano_rag(grid: &Grid, bar: i64, p: &mut Parts) {
-    // One-bar D blues riff at eighth density, accents marking the rag bounce.
-    let rag: [(i64, u8, u8); 8] = [
-        (0, 62, 82),
-        (1, 65, 70),
-        (2, 67, 70),
-        (3, 69, 78),
-        (4, 69, 84),
-        (5, 67, 70),
-        (6, 65, 70),
-        (7, 62, 80),
-    ];
-    for (e, note, vel) in rag {
-        note_on_off_h(&mut p.piano, grid, bar, e, 1, note, vel);
-    }
-}
-
-fn piano_comp(grid: &Grid, bar: i64, p: &mut Parts) {
-    let (root, tones) = CHORDS[bar as usize];
-    let shell = chord_notes(root, &tones, 1);
-
-    // Hit "2&" staccato, ring "& of 4" into the next bar.
-    for &(e, dur) in &[(3, 1), (7, 2)] {
-        let vel = 64 + ((bar % 3) as u8) * 2;
-        for &n in &shell {
-            note_on_off_h(&mut p.piano, grid, bar, e, dur, n, vel);
-        }
-    }
-    // Ringing top answer on phrase ends.
-    if bar % 4 == 3 {
-        note_on_off_h(&mut p.piano, grid, bar, 6, 1, (root + 24) as u8, 70);
     }
 }
 
@@ -493,23 +475,15 @@ fn main() {
         .join("src/song.bin")
         .to_string_lossy()
         .into_owned();
-    let default_export = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("export")
-        .to_string_lossy()
-        .into_owned();
 
     let mut out_path = default_out;
-    let mut export_dir = default_export;
-    let mut want_wav = false;
 
     let mut args = env::args().skip(1).peekable();
     while let Some(a) = args.next() {
         match a.as_str() {
             "--out" => out_path = args.next().expect("--out needs a path"),
-            "--wav" => want_wav = true,
-            "--export-dir" => export_dir = args.next().expect("--export-dir needs a path"),
             other => {
-                eprintln!("usage: cargo run --example instrument_test [--out <path>] [--wav] [--export-dir <path>]");
+                eprintln!("usage: cargo run --example instrument_test [--out <path>]");
                 eprintln!("unknown argument: {other}");
                 std::process::exit(2);
             }
@@ -521,7 +495,6 @@ fn main() {
     grid.swing = 0.2;
 
     let mut p = Parts {
-        piano: Vec::new(),
         bass: Vec::new(),
         kick: Vec::new(),
         snare: Vec::new(),
@@ -531,6 +504,7 @@ fn main() {
         shake: Vec::new(),
         flute: Vec::new(),
         sax: Vec::new(),
+        slg: Vec::new(),
     };
 
     for bar in 0i64..32 {
@@ -563,44 +537,92 @@ fn main() {
         let walk = (8..=11).contains(&bar) || (20..=21).contains(&bar);
         bass_bar(&grid, bar, &mut p, walk, (24..=27).contains(&bar));
 
-        // Piano: ragtime motif on the intro, swung comp otherwise, quiet in
-        // the breakdown.
-        match section(bar) {
-            "intro" => piano_rag(&grid, bar, &mut p),
-            "breakdown" => {}
-            _ => piano_comp(&grid, bar, &mut p),
-        }
-
         // Brass stabs (the personality layer).
         brass_section(&grid, bar, &mut p);
 
         // Lead sax topline + flute counter-melody.
         lead(&grid, bar, &mut p);
+
+        // Slaughter synth growl through the breakdown, climbing into the drop.
+        if (24..=27).contains(&bar) {
+            let (root, _) = CHORDS[bar as usize];
+            note_on_off_h(&mut p.slg, &grid, bar, 0, if bar % 2 == 0 { 4 } else { 2 }, root as u8, if bar == 24 { 92 } else { 84 });
+            if bar == 27 {
+                // Blues-style pickup climb into the final chorus downbeat.
+                for (k, n) in [53i32, 55, 56, 58].iter().enumerate() {
+                    note_on_off_h(&mut p.slg, &grid, bar, (4 + k as i64) as i64, 1, *n as u8, 80 + (k as u8) * 4);
+                }
+            }
+        }
     }
 
     // --- Assemble the song ---
     let mut song = Song::new(BPM as i32, SAMPLE_RATE as i32);
 
-    let instruments: Vec<(&str, Vec<MidiEvent>, (DeviceId, Vec<u8>))> = vec![
-        ("piano", p.piano, piano::piano()),
-        ("bass", p.bass, bass::bass()),
-        ("kick", p.kick, drums::kick()),
-        ("snare", p.snare, drums::snare()),
-        ("hat_c", p.hat_c, drums::closed_hat()),
-        ("hat_o", p.hat_o, drums::open_hat()),
-        ("crash", p.crash, drums::crash()),
-        ("shake", p.shake, drums::shaker()),
-        ("flute", p.flute, flute::flute()),
-        ("sax", p.sax, saxophone::tenor_sax()),
+    // Slaughter: saw-ish growl (osc1 + detuned osc3), lowpass, echo tail.
+    // Params per `Slaughter::ParamIndices`; PulseWidth is stored inverted.
+    let slaughter_chunk = {
+        let mut p = [0.0f32; 42];
+        p[0] = 0.5; // Osc1 waveform (saw-ish blend)
+        p[1] = 0.0; // pulse width (-> 1.0)
+        p[2] = 1.0; // Osc1 volume
+        p[10] = 0.35; // Osc3 waveform
+        p[12] = 0.5; // Osc3 volume
+        p[13] = 0.04; // Osc3 detune coarse
+        p[15] = 0.05; // noise volume
+        p[16] = 0.8; // filter type -> bandpass-ish
+        p[17] = 0.45; // filter freq
+        p[18] = 0.4; // resonance
+        p[19] = 0.35; // filter mod amount
+        p[20] = 0.05; // amp attack
+        p[21] = 0.25; // amp decay
+        p[22] = 0.7; // amp sustain
+        p[23] = 0.25; // amp release
+        p[28] = 0.7; // master level
+        p[29] = 0.1; // voices unisono (2)
+        p[30] = 0.3; // voices detune
+        p[31] = 0.4; // voices pan (left-ish centre)
+        p[34] = 0.0; // rise
+        p[40] = 0.0; // voice mode: poly
+        p[41] = 0.3; // slide
+        (DeviceId::Slaughter, build_chunk(&p))
+    };
+    let echo_chunk = {
+        let mut p = [0.0f32; 9];
+        p[0] = 0.25; // left delay coarse
+        p[1] = 1.0; // left delay fine (ms)
+        p[2] = 0.22; // right delay coarse
+        p[3] = 1.0; // right delay fine
+        p[4] = 0.1; // low cut
+        p[5] = 0.9; // high cut
+        p[6] = 0.35; // feedback
+        p[7] = 0.1; // cross
+        p[8] = 0.2; // dry/wet
+        (DeviceId::Echo, build_chunk(&p))
+    };
+
+    let instruments: Vec<(Vec<MidiEvent>, (DeviceId, Vec<u8>))> = vec![
+        (p.bass, bass::bass()),
+        (p.kick, drums::kick()),
+        (p.snare, drums::snare()),
+        (p.hat_c, drums::closed_hat()),
+        (p.hat_o, drums::open_hat()),
+        (p.crash, drums::crash()),
+        (p.shake, drums::shaker()),
+        (p.flute, flute::flute()),
+        (p.sax, saxophone::tenor_sax()),
+        (p.slg, slaughter_chunk),
     ];
 
-    let mut track_names: Vec<String> = Vec::new();
-    for (name, events, (dev_id, dev_chunk)) in &instruments {
+    for (events, (dev_id, dev_chunk)) in &instruments {
         let mut track = Track::new(1.0);
         track.devices.push((dev_id.clone(), dev_chunk.clone()));
+        // Chain an echo over the Slaughter synth to exercise the fx devices.
+        if *dev_id == DeviceId::Slaughter {
+            track.devices.push(echo_chunk.clone());
+        }
         track.events = events.clone();
         song.tracks.push(track);
-        track_names.push(name.to_string());
     }
 
     // Master: receives from all tracks
@@ -625,52 +647,5 @@ fn main() {
 
     let data = encode(&song);
     fs::write(&out_path, &data).expect("failed to write song.bin");
-
-    // WAV preview
-    if want_wav {
-        let parsed = decode(&data).expect("internal error: re-parsing the generated song");
-        let stem_base = Path::new(&out_path)
-            .file_stem()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .into_owned();
-        fs::create_dir_all(&export_dir).expect("failed to create export directory");
-
-        let mut mix = starter::render::render(&parsed);
-        starter::render::normalize(&mut mix);
-        let mix_path = Path::new(&export_dir).join(format!("{stem_base}.wav"));
-        starter::render::write_wav_at(&mix_path.to_string_lossy(), &mix, SAMPLE_RATE as u32);
-        println!(
-            "wrote {} ({:.2}s mono wav)",
-            mix_path.display(),
-            mix.len() as f64 / SAMPLE_RATE as f64
-        );
-
-        // Per-instrument stems
-        let stems: &[(&str, &[usize])] = &[
-            ("piano", &[0]),
-            ("bass", &[1]),
-            ("drums", &[2, 3, 4, 5, 6, 7]),
-            ("flute", &[8]),
-            ("sax", &[9]),
-        ];
-        for (name, tracks) in stems {
-            let mut buf: Vec<f32> = Vec::new();
-            for &ti in *tracks {
-                let solo = starter::render::render_solo(&parsed, ti);
-                if buf.is_empty() {
-                    buf = solo;
-                } else {
-                    for (i, s) in solo.iter().enumerate() {
-                        buf[i] += s;
-                    }
-                }
-            }
-            starter::render::normalize(&mut buf);
-            let stem_path = Path::new(&export_dir).join(format!("{stem_base}.{name}.wav"));
-            starter::render::write_wav_at(&stem_path.to_string_lossy(), &buf, SAMPLE_RATE as u32);
-            println!("wrote {}", stem_path.display());
-        }
-        let _ = track_names;
-    }
+    println!("wrote {out_path} ({} bytes)", data.len());
 }
