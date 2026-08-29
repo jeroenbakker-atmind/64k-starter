@@ -142,12 +142,10 @@ pub fn param_to_spread(p: f32) -> u8 {
 
 /// `Helpers::PanToScalarLeft`.
 pub fn pan_to_scalar_left(pan: f32) -> f32 {
-    const C: f64 = 3.141592653589793;
-    (std::f64::consts::SQRT_2 * fast_cos(((pan as f64) - 0.5) * C)) as f32
+    (1.0 - pan).sqrt()
 }
 
 /// `Helpers::PanToScalarRight`.
 pub fn pan_to_scalar_right(pan: f32) -> f32 {
-    const C: f64 = 3.141592653589793;
-    (std::f64::consts::SQRT_2 * fast_sin(((pan as f64) - 0.5) * C)) as f32
+    pan.sqrt()
 }
