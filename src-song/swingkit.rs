@@ -140,6 +140,22 @@ pub fn chord_notes(root: i32, tones: &[i32; 4], octave: i32) -> [u8; 3] {
     ]
 }
 
+/// Maps a chord degree to a note guaranteed inside the chord: 0 = root +1
+/// octave, 1 = root +2 octaves, 2..4 = 3rd/5th/7th above the root, 5..7 the
+/// same one octave up. Keeps song melodies diatonic by construction.
+pub fn chord_degree(root: i32, tones: &[i32; 4], d: u8) -> u8 {
+    match d {
+        0 => (root + 12) as u8,
+        1 => (root + 24) as u8,
+        2 => (root + 12 + tones[1]) as u8,
+        3 => (root + 12 + tones[2]) as u8,
+        4 => (root + 12 + tones[3]) as u8,
+        5 => (root + 24 + tones[1]) as u8,
+        6 => (root + 24 + tones[2]) as u8,
+        _ => (root + 24 + tones[3]) as u8,
+    }
+}
+
 /// Lays a row of `(eighth, dur_eighths, note)` notes into `events`, played
 /// lazily out of the grid (humanized). A row is one bar of melody.
 pub fn spread(
@@ -221,4 +237,24 @@ pub fn write_bin(data: &[u8], path: &str) {
     fs::write(path, data).expect("failed to write song.bin");
     let bytes = data.len();
     println!("wrote {path} ({bytes} bytes)");
+}
+
+/// Assembles and writes a song plus a `<path>.md` manifest listing its placed
+/// track names (track index per line), so `render_song` can name the stems
+/// (`song-...t3-piano.wav`) and export the manifest alongside the audio.
+pub fn write_song(bpm: f64, tail_secs: f64, placed: Vec<Placed>, path: &str) {
+    let names: Vec<&str> = placed.iter().map(|p| p.name).collect();
+    let data = assemble(bpm, tail_secs, placed);
+    write_bin(&data, path);
+    let md = format!(
+        "# Track list\n\n{}",
+        names
+            .iter()
+            .enumerate()
+            .map(|(i, n)| format!("{i}: {n}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    fs::write(format!("{path}.md"), md).expect("failed to write track manifest");
+    println!("wrote {path}.md");
 }

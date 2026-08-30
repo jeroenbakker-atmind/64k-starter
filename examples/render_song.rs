@@ -7,11 +7,17 @@
 //!
 //! Usage:
 //!   cargo run --release --example render_song -- <song.bin> [--out-dir <dir>]
-//!       [--stem name:0,1,2 ...]
+//!       [--kind <name>] [--stem name:0,1,2 ...]
+//!
+//! With `--kind <name>` the mix and stems are written into `<dir>/<name>/` as
+//! `song-<name>.wav` and `song-<name>.<stem>.wav`, plus a copy of the track
+//! manifest (`song-<name>.md`). The song generators (`write_song`) produce a
+//! `<song>.md` manifest next to the `.bin`; when present, default stems are
+//! named `t<index>-<track>` (e.g. `song-tea.t7-piano.wav`).
 //!
 //! Example:
 //!   cargo run --release --example render_song -- src/swing_tea.bin \
-//!       --stem bass:0 --stem drums:1,2,3,4,5,6 --stem piano:7
+//!       --kind tea --stem bass:0 --stem drums:1,2,3,4,5,6 --stem piano:7
 
 use std::env;
 use std::fs;
@@ -34,10 +40,12 @@ fn main() {
         .join("export")
         .to_string_lossy()
         .into_owned();
+    let mut kind: Option<String> = None;
     let mut stems: Vec<(String, Vec<usize>)> = Vec::new();
     while let Some(a) = args.next() {
         match a.as_str() {
             "--out-dir" => out_dir = args.next().expect("--out-dir needs a path"),
+            "--kind" => kind = Some(args.next().expect("--kind needs a name")),
             "--stem" => {
                 let spec = args.next().expect("--stem needs 'name:0,1,2'");
                 let (name, idxs) = spec.split_once(':').unwrap_or_else(|| {
@@ -62,11 +70,51 @@ fn main() {
     let parsed = decode(&data).expect("internal error: re-parsing the generated song");
     let sr = parsed.sample_rate.max(1) as f64;
 
+    // Optional track-name manifest. `write_song` writes it as `<song>.bin.md`;
+// look there first, then `<song>.md`.
+    let manifest_path = Path::new(&song_path).with_extension("md");
+    let manifest_path = if manifest_path.exists() {
+        manifest_path
+    } else {
+        Path::new(&format!("{song_path}.md")).to_path_buf()
+    };
+    let mut track_names: Vec<String> = Vec::new();
+    if let Ok(text) = fs::read_to_string(&manifest_path) {
+        for line in text.lines() {
+            if let Some((idx, name)) = line.trim().split_once(": ") {
+                if let Ok(i) = idx.parse::<usize>() {
+                    while track_names.len() <= i {
+                        track_names.push(String::new());
+                    }
+                    track_names[i] = name.to_string();
+                }
+            }
+        }
+    }
+
+    // A default single-track stem is named `t<index>-<track>` when the song
+    // manifest names the track, otherwise just `t<index>`.
+    let stem_name = |ti: usize| -> String {
+        match track_names.get(ti).map(String::as_str) {
+            Some(n) if !n.is_empty() => format!("t{ti}-{n}"),
+            _ => format!("t{ti}"),
+        }
+    };
+
     let stem_base = Path::new(&song_path)
         .file_stem()
         .unwrap_or_default()
         .to_string_lossy()
         .into_owned();
+
+    // With --kind, export into <out-dir>/<kind>/ as "song-<kind>.*".
+    let (base_name, out_dir) = match kind {
+        Some(k) => (
+            format!("song-{k}"),
+            Path::new(&out_dir).join(&k).to_string_lossy().into_owned(),
+        ),
+        None => (stem_base, out_dir),
+    };
 
     // Device names by id, for the per-track listing.
     let dev_name = |id: DeviceId| -> &'static str {
@@ -95,6 +143,10 @@ fn main() {
         parsed.tracks.len()
     );
     for (ti, t) in parsed.tracks.iter().enumerate() {
+        let named = match track_names.get(ti).map(String::as_str) {
+            Some(n) if !n.is_empty() => format!(" (stem {})", stem_name(ti)),
+            _ => String::new(),
+        };
         let devs: Vec<String> = t
             .device_indices
             .iter()
@@ -107,7 +159,7 @@ fn main() {
             .map(|r| format!("t{}->ch{}@{:.2}", r.sending_track, r.channel, r.volume))
             .collect();
         println!(
-            "  track {ti}: vol={:.2} lane={} devices={}{}",
+            "  track {ti}: vol={:.2} lane={} devices={}{}{}",
             t.volume,
             t.lane_id,
             devs.join(","),
@@ -116,6 +168,7 @@ fn main() {
             } else {
                 format!(" receives: {}", recv.join(" "))
             },
+            named,
         );
     }
 
@@ -124,7 +177,7 @@ fn main() {
     // Full mix (stereo).
     let mut mix = render::render_stereo(&parsed);
     render::normalize_stereo(&mut mix);
-    let mix_path = Path::new(&out_dir).join(format!("{stem_base}.wav"));
+    let mix_path = Path::new(&out_dir).join(format!("{base_name}.wav"));
     render::write_stereo_wav_at(&mix_path.to_string_lossy(), &mix, sr as u32);
     println!(
         "wrote {} ({:.2}s, {} samples)",
@@ -133,11 +186,18 @@ fn main() {
         mix.len()
     );
 
+    // Export the track manifest alongside the audio when the song has one.
+    if fs::read_to_string(&manifest_path).is_ok() {
+        let md_path = Path::new(&out_dir).join(format!("{base_name}.md"));
+        fs::copy(&manifest_path, &md_path).expect("failed to copy track manifest");
+        println!("wrote {}", md_path.display());
+    }
+
     // Per-instrument stems (default: one per track, in track order).
     let groups: Vec<(String, Vec<usize>)> = if stems.is_empty() {
         let mut g = Vec::new();
         for ti in 0..parsed.tracks.len() {
-            g.push((format!("t{}", ti), vec![ti]));
+            g.push((stem_name(ti), vec![ti]));
         }
         g
     } else {
@@ -161,7 +221,7 @@ fn main() {
             }
         }
         render::normalize_stereo(&mut buf);
-        let stem_path = Path::new(&out_dir).join(format!("{stem_base}.{name}.wav"));
+        let stem_path = Path::new(&out_dir).join(format!("{base_name}.{name}.wav"));
         render::write_stereo_wav_at(&stem_path.to_string_lossy(), &buf, sr as u32);
         println!("wrote {} ({:.2}s)", stem_path.display(), buf.len() as f64 / sr);
     }

@@ -222,6 +222,5 @@ fn main() {
         Placed { name: "flute", events: p.flute, dev: flute::flute() },
         Placed { name: "sax", events: p.sax, dev: saxophone::tenor_sax() },
     ];
-    let data = assemble(BPM, TAIL_SECS, placed);
-    write_bin(&data, &opts.out);
+    write_song(BPM, TAIL_SECS, placed, &opts.out);
 }

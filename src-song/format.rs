@@ -396,6 +396,202 @@ impl Falcon {
     }
 }
 
+/// Typed chunk builder for the `Slaughter` subtractive synth
+/// (three BLIT pulse oscillators + state-variable filter + env trio).
+///
+/// Stored values are the *serialized* scalar each SetParam arm consumes:
+/// pulse widths inverted (`1.0 - width`), envelope times via [`env_ms`],
+/// filter type/freq/resonance and voice params in their 0..1 domains.
+/// Docs reference the matching `Slaughter::set_param` arm in
+/// `sabrewave/slaughter.rs`.
+#[derive(Clone, Copy, Debug)]
+pub struct Slaughter {
+    pub osc1_waveform: f32,
+    pub osc1_pulse_width: f32,
+    pub osc1_volume: f32,
+    pub osc1_detune_coarse: f32,
+    pub osc1_detune_fine: f32,
+    pub osc2_waveform: f32,
+    pub osc2_pulse_width: f32,
+    pub osc2_volume: f32,
+    pub osc2_detune_coarse: f32,
+    pub osc2_detune_fine: f32,
+    pub osc3_waveform: f32,
+    pub osc3_pulse_width: f32,
+    pub osc3_volume: f32,
+    pub osc3_detune_coarse: f32,
+    pub osc3_detune_fine: f32,
+    pub noise_volume: f32,
+    /// 0..1 -> filter type selector (0 = lowpass).
+    pub filter_type: f32,
+    /// Param scaling 20..19980 Hz, value = `((hz - 20) / 19980).sqrt()`.
+    pub filter_freq: f32,
+    /// Stored inverted: `1.0 - resonance` (0.0 stored = max Q).
+    pub filter_resonance: f32,
+    pub filter_mod_amt: f32,
+    pub amp_attack: f32,
+    pub amp_decay: f32,
+    pub amp_sustain: f32,
+    pub amp_release: f32,
+    pub mod_attack: f32,
+    pub mod_decay: f32,
+    pub mod_sustain: f32,
+    pub mod_release: f32,
+    pub master_level: f32,
+    /// 0..1 -> number of unison voices = `(v * 15) + 1`.
+    pub voices_unisono: f32,
+    pub voices_detune: f32,
+    pub voices_pan: f32,
+    pub vibrato_freq: f32,
+    pub vibrato_amount: f32,
+    /// Semi-tones per rise value: `v * 24`.
+    pub rise: f32,
+    pub pitch_attack: f32,
+    pub pitch_decay: f32,
+    pub pitch_sustain: f32,
+    pub pitch_release: f32,
+    /// Semitones = `(v - 0.5) * 72` (0.5 = no sweep).
+    pub pitch_env_amt: f32,
+    /// 0 = polyphonic, 1 = mono legato trill.
+    pub voice_mode: f32,
+    pub slide: f32,
+}
+
+impl Default for Slaughter {
+    /// Matches `SlaughterSynth::new` (the core's cloned defaults).
+    fn default() -> Self {
+        Slaughter {
+            osc1_waveform: 0.0,
+            osc1_pulse_width: 0.5,
+            osc1_volume: 1.0,
+            osc1_detune_coarse: 0.0,
+            osc1_detune_fine: 0.0,
+            osc2_waveform: 0.0,
+            osc2_pulse_width: 0.5,
+            osc2_volume: 0.0,
+            osc2_detune_coarse: 0.0,
+            osc2_detune_fine: 0.0,
+            osc3_waveform: 0.0,
+            osc3_pulse_width: 0.5,
+            osc3_volume: 0.0,
+            osc3_detune_coarse: 0.0,
+            osc3_detune_fine: 0.0,
+            noise_volume: 0.0,
+            filter_type: 0.0,
+            filter_freq: 1.0,
+            filter_resonance: 1.0,
+            filter_mod_amt: 0.5,
+            amp_attack: env_ms(1.0),
+            amp_decay: env_ms(5.0),
+            amp_sustain: 0.5,
+            amp_release: env_ms(1.5),
+            mod_attack: env_ms(1.0),
+            mod_decay: env_ms(5.0),
+            mod_sustain: 1.0,
+            mod_release: env_ms(1.5),
+            master_level: 0.5,
+            voices_unisono: 0.0,
+            voices_detune: 0.0,
+            voices_pan: 0.5,
+            vibrato_freq: 0.0,
+            vibrato_amount: 0.0,
+            rise: 0.0,
+            pitch_attack: env_ms(1.0),
+            pitch_decay: env_ms(5.0),
+            pitch_sustain: 0.5,
+            pitch_release: env_ms(1.5),
+            pitch_env_amt: 0.5,
+            voice_mode: 0.0,
+            slide: 0.0,
+        }
+    }
+}
+
+impl Slaughter {
+    /// Frequency to the filter-freq param (`freq = 20 + 19980 * v^2`, so
+    /// `v = sqrt((freq - 20) / 19980)`).
+    pub fn filter_freq_hz(hz: f32) -> f32 {
+        (((hz - 20.0) / 19980.0).max(0.0)).sqrt()
+    }
+
+    /// Stored value for a desired resonance `0..1`.
+    pub fn resonance(res: f32) -> f32 {
+        1.0 - res.clamp(0.0, 1.0)
+    }
+
+    /// Pulse-width stored value for a desired width `0..1`.
+    pub fn pulse_width(width: f32) -> f32 {
+        1.0 - width.clamp(0.0, 1.0)
+    }
+
+    /// Coarse detune stored value adding `n` semitones (`floor(v * 24.99)`).
+    /// Midpoint of the quantization bin so integer steps never jitter an ulp.
+    pub fn detune_coarse(n: f32) -> f32 {
+        (n + 0.5) / 24.99
+    }
+
+    /// Pitch envelope amount for `semitones` within ±36 (same as Falcon).
+    pub fn pitch_amt(semitones: f32) -> f32 {
+        semitones / 72.0 + 0.5
+    }
+
+    /// Fine detune stored value for `cents` cents (`+cents / 100` semis).
+    pub fn detune_fine(cents: f32) -> f32 {
+        cents / 100.0
+    }
+
+    pub fn to_params(&self) -> [f32; 42] {
+        [
+            self.osc1_waveform,
+            self.osc1_pulse_width,
+            self.osc1_volume,
+            self.osc1_detune_coarse,
+            self.osc1_detune_fine,
+            self.osc2_waveform,
+            self.osc2_pulse_width,
+            self.osc2_volume,
+            self.osc2_detune_coarse,
+            self.osc2_detune_fine,
+            self.osc3_waveform,
+            self.osc3_pulse_width,
+            self.osc3_volume,
+            self.osc3_detune_coarse,
+            self.osc3_detune_fine,
+            self.noise_volume,
+            self.filter_type,
+            self.filter_freq,
+            self.filter_resonance,
+            self.filter_mod_amt,
+            self.amp_attack,
+            self.amp_decay,
+            self.amp_sustain,
+            self.amp_release,
+            self.mod_attack,
+            self.mod_decay,
+            self.mod_sustain,
+            self.mod_release,
+            self.master_level,
+            self.voices_unisono,
+            self.voices_detune,
+            self.voices_pan,
+            self.vibrato_freq,
+            self.vibrato_amount,
+            self.rise,
+            self.pitch_attack,
+            self.pitch_decay,
+            self.pitch_sustain,
+            self.pitch_release,
+            self.pitch_env_amt,
+            self.voice_mode,
+            self.slide,
+        ]
+    }
+
+    pub fn chunk(&self) -> Vec<u8> {
+        build_chunk(&self.to_params())
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MidiEvent {
     pub samples: i64,
