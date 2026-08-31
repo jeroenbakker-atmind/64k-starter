@@ -5,7 +5,7 @@
 //! Usage: `cargo run --release --example swing_amber -- [--out <path>]`
 
 
-use starter::instruments::slavery;
+use starter::instruments::slaughter;
 use starter::instruments::{drums, flute, piano, saxophone};
 use starter::swingkit::*;
 
@@ -149,7 +149,7 @@ fn main() {
     }
 
     let placed = vec![
-        Placed { name: "bass", events: p.bass, dev: slavery::bass::bass() },
+        Placed { name: "bass", events: p.bass, dev: slaughter::bass::bass() },
         Placed { name: "kick", events: p.kick, dev: drums::kick() },
         Placed { name: "snare", events: p.snare, dev: drums::snare() },
         Placed { name: "hat_c", events: p.hat_c, dev: drums::closed_hat() },

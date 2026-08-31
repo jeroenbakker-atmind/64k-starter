@@ -4,6 +4,6 @@
 /// established set and are re-exported at this crate root, so
 /// `use starter::instruments::bass;` keeps working unchanged.
 pub mod falcon;
-pub mod slavery;
+pub mod slaughter;
 
-pub use falcon::{bass, drums, flute, piano, saxophone};
+pub use falcon::{bass, clarinet, drums, flute, piano, saxophone};

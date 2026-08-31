@@ -15,7 +15,7 @@ use std::fs;
 use std::path::Path;
 
 use starter::format::{DeviceId, MidiEvent, Receive, Song, Track, decode, encode};
-use starter::instruments::{falcon, slavery};
+use starter::instruments::{falcon, slaughter};
 use starter::render;
 
 const SAMPLE_RATE: u32 = 44100;
@@ -83,22 +83,31 @@ fn main() {
     push(&mut cat, "falcon", "tenor-sax", 57, falcon::saxophone::tenor_sax);
     push(&mut cat, "falcon", "alto-sax", 60, falcon::saxophone::alto_sax);
 
-    // Core slavery kit.
-    push(&mut cat, "slavery", "bass", 48, slavery::bass::bass);
-    push(&mut cat, "slavery", "kick", 36, slavery::drums::kick);
-    push(&mut cat, "slavery", "snare", 38, slavery::drums::snare);
-    push(&mut cat, "slavery", "closed-hat", 42, slavery::drums::closed_hat);
-    push(&mut cat, "slavery", "open-hat", 46, slavery::drums::open_hat);
-    push(&mut cat, "slavery", "crash", 49, slavery::drums::crash);
-    push(&mut cat, "slavery", "shaker", 54, slavery::drums::shaker);
-    push(&mut cat, "slavery", "piano", 60, slavery::piano::piano);
-    push(&mut cat, "slavery", "tenor-sax", 57, slavery::saxophone::tenor_sax);
-    push(&mut cat, "slavery", "alto-sax", 60, slavery::saxophone::alto_sax);
+    // Core slaughter kit.
+    push(&mut cat, "slaughter", "bass", 48, slaughter::bass::bass);
+    push(&mut cat, "slaughter", "kick", 36, slaughter::drums::kick);
+    push(&mut cat, "slaughter", "snare", 38, slaughter::drums::snare);
+    push(&mut cat, "slaughter", "closed-hat", 42, slaughter::drums::closed_hat);
+    push(&mut cat, "slaughter", "open-hat", 46, slaughter::drums::open_hat);
+    push(&mut cat, "slaughter", "crash", 49, slaughter::drums::crash);
+    push(&mut cat, "slaughter", "shaker", 54, slaughter::drums::shaker);
+    push(&mut cat, "slaughter", "piano", 60, slaughter::piano::piano);
+    push(&mut cat, "slaughter", "tenor-sax", 57, slaughter::saxophone::tenor_sax);
+    push(&mut cat, "slaughter", "alto-sax", 60, slaughter::saxophone::alto_sax);
 
-    // 20 variations per family (10 falcon + 10 slavery).
+    // 20 variations per family (10 falcon + 10 slaughter).
     let flute_vars: [&str; 3] = ["1","2","3"];
     let piano_vars: [&str; 10] = ["1","2","3","4","5","6","7","8","9","10"];
     let sax_vars: [&str; 10] = ["1","2","3","4","5","6","7","8","9","10"];
+    let clarinet_vars: [&str; 4] = ["dark","vibrato","legato","ballad"];
+    let falcon_clarinets = [
+        falcon::clarinet::clarinet_dark, falcon::clarinet::clarinet_vibrato,
+        falcon::clarinet::clarinet_legato, falcon::clarinet::clarinet_ballad,
+    ];
+    let slaughter_clarinet_vars: [&str; 1] = ["legato"];
+    let slaughter_clarinets: [Patch; 1] = [
+        slaughter::clarinet::clarinet_legato,
+    ];
     let falcon_flutes = [
         falcon::flute::flute_v1, falcon::flute::flute_v2, falcon::flute::flute_v3,
     ];
@@ -114,24 +123,26 @@ fn main() {
         falcon::saxophone::sax_v7, falcon::saxophone::sax_v8, falcon::saxophone::sax_v9,
         falcon::saxophone::sax_v10,
     ];
-    let slavery_pianos = [
-        slavery::piano::piano_v1, slavery::piano::piano_v2, slavery::piano::piano_v3,
-        slavery::piano::piano_v4, slavery::piano::piano_v5, slavery::piano::piano_v6,
-        slavery::piano::piano_v7, slavery::piano::piano_v8, slavery::piano::piano_v9,
-        slavery::piano::piano_v10,
+    let slaughter_pianos = [
+        slaughter::piano::piano_v1, slaughter::piano::piano_v2, slaughter::piano::piano_v3,
+        slaughter::piano::piano_v4, slaughter::piano::piano_v5, slaughter::piano::piano_v6,
+        slaughter::piano::piano_v7, slaughter::piano::piano_v8, slaughter::piano::piano_v9,
+        slaughter::piano::piano_v10,
     ];
-    let slavery_saxes = [
-        slavery::saxophone::sax_v1, slavery::saxophone::sax_v2, slavery::saxophone::sax_v3,
-        slavery::saxophone::sax_v4, slavery::saxophone::sax_v5, slavery::saxophone::sax_v6,
-        slavery::saxophone::sax_v7, slavery::saxophone::sax_v8, slavery::saxophone::sax_v9,
-        slavery::saxophone::sax_v10,
+    let slaughter_saxes = [
+        slaughter::saxophone::sax_v1, slaughter::saxophone::sax_v2, slaughter::saxophone::sax_v3,
+        slaughter::saxophone::sax_v4, slaughter::saxophone::sax_v5, slaughter::saxophone::sax_v6,
+        slaughter::saxophone::sax_v7, slaughter::saxophone::sax_v8, slaughter::saxophone::sax_v9,
+        slaughter::saxophone::sax_v10,
     ];
 
     push_vars(&mut cat, "falcon", "flute", 60, &flute_vars, &falcon_flutes);
     push_vars(&mut cat, "falcon", "piano", 60, &piano_vars, &falcon_pianos);
     push_vars(&mut cat, "falcon", "sax", 60, &sax_vars, &falcon_saxes);
-    push_vars(&mut cat, "slavery", "piano", 60, &piano_vars, &slavery_pianos);
-    push_vars(&mut cat, "slavery", "sax", 60, &sax_vars, &slavery_saxes);
+    push_vars(&mut cat, "falcon", "clarinet", 60, &clarinet_vars, &falcon_clarinets);
+    push_vars(&mut cat, "slaughter", "clarinet", 60, &slaughter_clarinet_vars, &slaughter_clarinets);
+    push_vars(&mut cat, "slaughter", "piano", 60, &piano_vars, &slaughter_pianos);
+    push_vars(&mut cat, "slaughter", "sax", 60, &sax_vars, &slaughter_saxes);
 
     println!("rendering {} patches to {}", cat.len(), out_dir.display());
 
