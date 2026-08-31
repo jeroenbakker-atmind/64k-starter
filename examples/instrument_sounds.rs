@@ -91,20 +91,16 @@ fn main() {
     push(&mut cat, "slavery", "open-hat", 46, slavery::drums::open_hat);
     push(&mut cat, "slavery", "crash", 49, slavery::drums::crash);
     push(&mut cat, "slavery", "shaker", 54, slavery::drums::shaker);
-    push(&mut cat, "slavery", "flute", 60, slavery::flute::flute);
     push(&mut cat, "slavery", "piano", 60, slavery::piano::piano);
     push(&mut cat, "slavery", "tenor-sax", 57, slavery::saxophone::tenor_sax);
     push(&mut cat, "slavery", "alto-sax", 60, slavery::saxophone::alto_sax);
 
     // 20 variations per family (10 falcon + 10 slavery).
-    let flute_vars: [&str; 10] = ["1","2","3","4","5","6","7","8","9","10"];
+    let flute_vars: [&str; 3] = ["1","2","3"];
     let piano_vars: [&str; 10] = ["1","2","3","4","5","6","7","8","9","10"];
     let sax_vars: [&str; 10] = ["1","2","3","4","5","6","7","8","9","10"];
     let falcon_flutes = [
         falcon::flute::flute_v1, falcon::flute::flute_v2, falcon::flute::flute_v3,
-        falcon::flute::flute_v4, falcon::flute::flute_v5, falcon::flute::flute_v6,
-        falcon::flute::flute_v7, falcon::flute::flute_v8, falcon::flute::flute_v9,
-        falcon::flute::flute_v10,
     ];
     let falcon_pianos = [
         falcon::piano::piano_v1, falcon::piano::piano_v2, falcon::piano::piano_v3,
@@ -117,12 +113,6 @@ fn main() {
         falcon::saxophone::sax_v4, falcon::saxophone::sax_v5, falcon::saxophone::sax_v6,
         falcon::saxophone::sax_v7, falcon::saxophone::sax_v8, falcon::saxophone::sax_v9,
         falcon::saxophone::sax_v10,
-    ];
-    let slavery_flutes = [
-        slavery::flute::flute_v1, slavery::flute::flute_v2, slavery::flute::flute_v3,
-        slavery::flute::flute_v4, slavery::flute::flute_v5, slavery::flute::flute_v6,
-        slavery::flute::flute_v7, slavery::flute::flute_v8, slavery::flute::flute_v9,
-        slavery::flute::flute_v10,
     ];
     let slavery_pianos = [
         slavery::piano::piano_v1, slavery::piano::piano_v2, slavery::piano::piano_v3,
@@ -140,7 +130,6 @@ fn main() {
     push_vars(&mut cat, "falcon", "flute", 60, &flute_vars, &falcon_flutes);
     push_vars(&mut cat, "falcon", "piano", 60, &piano_vars, &falcon_pianos);
     push_vars(&mut cat, "falcon", "sax", 60, &sax_vars, &falcon_saxes);
-    push_vars(&mut cat, "slavery", "flute", 60, &flute_vars, &slavery_flutes);
     push_vars(&mut cat, "slavery", "piano", 60, &piano_vars, &slavery_pianos);
     push_vars(&mut cat, "slavery", "sax", 60, &sax_vars, &slavery_saxes);
 

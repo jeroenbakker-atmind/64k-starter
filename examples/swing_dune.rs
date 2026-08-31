@@ -5,7 +5,7 @@
 //! Usage: `cargo run --release --example swing_dune -- [--out <path>]`
 
 
-use starter::instruments::slavery;
+use starter::instruments::{falcon, slavery};
 use starter::swingkit::*;
 
 const BPM: f64 = 76.0;
@@ -135,7 +135,7 @@ fn main() {
         Placed { name: "crash", events: p.crash, dev: slavery::drums::crash() },
         Placed { name: "shake", events: p.shake, dev: slavery::drums::shaker() },
         Placed { name: "piano", events: p.piano, dev: slavery::piano::piano() },
-        Placed { name: "flute", events: p.flute, dev: slavery::flute::flute() },
+        Placed { name: "flute", events: p.flute, dev: falcon::flute::flute_v3() },
         Placed { name: "sax", events: p.sax, dev: slavery::saxophone::tenor_sax() },
     ];
     write_song(BPM, TAIL_SECS, placed, &opts.out);
