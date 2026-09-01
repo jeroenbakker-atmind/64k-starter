@@ -5,7 +5,7 @@
 //! Usage: `cargo run --release --example swing_tea -- [--out <path>]`
 
 
-use starter::instruments::{bass, drums, flute, piano, saxophone};
+use starter::instruments::{falcon, bass, drums, flute, saxophone};
 use starter::swingkit::*;
 
 const BPM: f64 = 104.0;
@@ -170,7 +170,7 @@ fn main() {
         Placed { name: "hat_o", events: p.hat_o, dev: drums::open_hat() },
         Placed { name: "crash", events: p.crash, dev: drums::crash() },
         Placed { name: "shake", events: p.shake, dev: drums::shaker() },
-        Placed { name: "piano", events: p.piano, dev: piano::piano() },
+        Placed { name: "pluck", events: p.piano, dev: falcon::pluck::pluck_warm() },
         Placed { name: "flute", events: p.flute, dev: flute::flute_airy() },
         Placed { name: "sax", events: p.sax, dev: saxophone::tenor_sax() },
     ];

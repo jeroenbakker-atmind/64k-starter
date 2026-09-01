@@ -7,6 +7,6 @@
 4: hat_o
 5: crash
 6: shake
-7: piano
+7: pluck
 8: flute
 9: sax
