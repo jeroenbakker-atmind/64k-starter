@@ -65,14 +65,14 @@ fn flute_cfg(
     (DeviceId::Falcon, f.chunk())
 }
 
-pub fn flute_v1() -> (DeviceId, Vec<u8>) {
+pub fn flute_soft() -> (DeviceId, Vec<u8>) {
     flute_cfg(0.00, 0.20, 0.06, 0.04, 28.0, 900.0, 0.68, 320.0, 4.6, 0.10, 0.0, 0.0, 0.58)
 }
 
-pub fn flute_v2() -> (DeviceId, Vec<u8>) {
+pub fn flute_airy() -> (DeviceId, Vec<u8>) {
     flute_cfg(0.02, 0.26, 0.12, 0.06, 60.0, 820.0, 0.80, 420.0, 4.7, 0.16, 0.0, 0.0, 0.64)
 }
 
-pub fn flute_v3() -> (DeviceId, Vec<u8>) {
+pub fn flute_bright() -> (DeviceId, Vec<u8>) {
     flute_cfg(0.03, 0.30, 0.10, 0.06, 24.0, 600.0, 0.60, 250.0, 4.4, 0.20, 0.0, 0.0, 0.62)
 }

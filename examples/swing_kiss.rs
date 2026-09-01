@@ -132,7 +132,7 @@ fn main() {
         Placed { name: "crash", events: p.crash, dev: drums::crash() },
         Placed { name: "shake", events: p.shake, dev: drums::shaker() },
         Placed { name: "piano", events: p.piano, dev: piano::piano() },
-        Placed { name: "flute", events: p.flute, dev: flute::flute_v3() },
+        Placed { name: "flute", events: p.flute, dev: flute::flute_bright() },
         Placed { name: "sax", events: p.sax, dev: saxophone::tenor_sax() },
     ];
     write_song(BPM, TAIL_SECS, placed, &opts.out);

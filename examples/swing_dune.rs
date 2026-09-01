@@ -135,7 +135,7 @@ fn main() {
         Placed { name: "crash", events: p.crash, dev: slaughter::drums::crash() },
         Placed { name: "shake", events: p.shake, dev: slaughter::drums::shaker() },
         Placed { name: "piano", events: p.piano, dev: slaughter::piano::piano() },
-        Placed { name: "flute", events: p.flute, dev: falcon::flute::flute_v3() },
+        Placed { name: "flute", events: p.flute, dev: falcon::flute::flute_bright() },
         Placed { name: "sax", events: p.sax, dev: slaughter::saxophone::tenor_sax() },
     ];
     write_song(BPM, TAIL_SECS, placed, &opts.out);
