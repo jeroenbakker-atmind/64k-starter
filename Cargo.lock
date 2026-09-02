@@ -1191,6 +1191,7 @@ dependencies = [
  "objc",
  "once_cell",
  "reqwest",
+ "song",
  "walkdir",
  "wavesabre",
  "wavesabre-rs",

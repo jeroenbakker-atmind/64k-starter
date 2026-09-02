@@ -8,6 +8,10 @@ edition = "2021"
 [build-dependencies]
 walkdir = "2.5"
 reqwest = { version = "0.12.15", features = ["blocking"] }
+# Music composition tooling — used only by build.rs to regenerate src/song.bin
+# before every build. It is compiled for the host (separate from the 64k
+# executable) and never linked into the final binary.
+song = { path = "../lib-song" }
 
 [target.'cfg(windows)'.dependencies.once_cell]
 version = "1.21.3"

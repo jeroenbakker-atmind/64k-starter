@@ -80,7 +80,25 @@ fn minify_shaders(sources: &[PathBuf]) {
         .unwrap();
 }
 
+/// Regenerates `src/song.bin` by running the music composition from the `song`
+/// library. This runs on the host every build, so the tune stays in sync with
+/// any changes to the composition without a nested `cargo` process.
+fn generate_song() {
+    let out = manifest_dir().join("src").join("song.bin");
+    let data = song::compose::compose();
+    fs::write(&out, &data).unwrap();
+    // Re-run whenever any of the composition inputs change.
+    for entry in WalkDir::new(manifest_dir().join("../../lib-song/src")) {
+        if let Ok(e) = entry {
+            if e.file_type().is_file() {
+                println!("cargo:rerun-if-changed={}", e.path().display());
+            }
+        }
+    }
+}
+
 fn main() {
+    generate_song();
     let sources = shader_sources();
     minify_shaders(&sources);
 

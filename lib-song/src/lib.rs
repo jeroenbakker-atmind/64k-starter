@@ -2,6 +2,7 @@
 //! patches, grids, swing helper kit) plus a thin facade over the `wavesabre`
 //! renderer. This library is *not* linked into the 64k binary.
 
+pub mod compose;
 pub mod instruments;
 pub mod music;
 pub mod render;
