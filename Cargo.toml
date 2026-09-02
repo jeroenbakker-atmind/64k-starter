@@ -1,51 +1,14 @@
-[package]
-name = "starter"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["lib-common", "lib-wavesabre", "lib-song", "bin-starter"]
+resolver = "2"
 
-# The music tooling library lives in src-song/ and is only used by the dev
-# examples; the 64k executable (src/main.rs) is built from src/ alone.
-[lib]
-path = "src-song/lib.rs"
-
-[profile.dev]
-panic = "abort"
-
+# 64k binary optimization profile (applies to the whole workspace; the release
+# `starter`/`starter.exe` must stay tiny).
 [profile.release]
 opt-level = "z"
 lto = true
 panic = "abort"
 codegen-units = 1
 
-[build-dependencies]
-walkdir = "2.5"
-reqwest = { version = "0.12.15", features = ["blocking"] }
-
-[dependencies.critical-section]
-version = "1.2.0"
-
-[dependencies.libc_alloc]
-version = "1.0.7"
-
-[dependencies.once_cell]
-version = "1.21.3"
-default-features = false
-features = [
-    "critical-section"
-]
-
-[target.'cfg(windows)'.dependencies.wavesabre-rs]
-git = "https://github.com/Kwarf/wavesabre-rs.git"
-
-[dependencies.windows-sys]
-version = "0.59.0"
-default-features = false
-features = [
-    "Win32_Foundation",
-    "Win32_Graphics_Gdi",
-    "Win32_Graphics_OpenGL",
-    "Win32_System_Performance",
-    "Win32_System_Threading",
-    "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_UI_WindowsAndMessaging",
-]
+[profile.dev]
+panic = "abort"
