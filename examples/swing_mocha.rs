@@ -34,9 +34,6 @@ fn groove(grid: &Grid, bar: i64, p: &mut Parts) {
     on_off(&mut p.shake, grid, bar, 3, 1, SHAKER, 56);
     on_off(&mut p.shake, grid, bar, 5, 1, SHAKER, 56);
     on_off(&mut p.shake, grid, bar, 7, 1, SHAKER, 56);
-    if bar == 0 || bar == 8 {
-        on_off(&mut p.crash, grid, bar, 0, 2, CRASH, 62);
-    }
 }
 
 fn bass_line(grid: &Grid, bar: i64, p: &mut Parts) {
@@ -127,8 +124,6 @@ fn main() {
         Placed { name: "kick", events: p.kick, dev: drums::kick() },
         Placed { name: "snare", events: p.snare, dev: drums::snare() },
         Placed { name: "hat_c", events: p.hat_c, dev: drums::closed_hat() },
-        Placed { name: "hat_o", events: p.hat_o, dev: drums::open_hat() },
-        Placed { name: "crash", events: p.crash, dev: drums::crash() },
         Placed { name: "shake", events: p.shake, dev: drums::shaker() },
         Placed { name: "piano", events: p.piano, dev: piano::piano() },
         Placed { name: "flute", events: p.flute, dev: flute::flute_airy() },

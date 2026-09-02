@@ -78,8 +78,6 @@ fn main() {
     push(&mut cat, "falcon", "kick", 36, falcon::drums::kick);
     push(&mut cat, "falcon", "snare", 38, falcon::drums::snare);
     push(&mut cat, "falcon", "closed-hat", 42, falcon::drums::closed_hat);
-    push(&mut cat, "falcon", "open-hat", 46, falcon::drums::open_hat);
-    push(&mut cat, "falcon", "crash", 49, falcon::drums::crash);
     push(&mut cat, "falcon", "flute", 60, falcon::flute::flute);
     push(&mut cat, "falcon", "piano", 60, falcon::piano::piano);
     push(&mut cat, "falcon", "pluck", 55, falcon::pluck::pluck);
@@ -91,9 +89,6 @@ fn main() {
     push(&mut cat, "slaughter", "kick", 36, slaughter::drums::kick);
     push(&mut cat, "slaughter", "snare", 38, slaughter::drums::snare);
     push(&mut cat, "slaughter", "closed-hat", 42, slaughter::drums::closed_hat);
-    push(&mut cat, "slaughter", "open-hat", 46, slaughter::drums::open_hat);
-    push(&mut cat, "slaughter", "crash", 49, slaughter::drums::crash);
-    push(&mut cat, "slaughter", "shaker", 54, slaughter::drums::shaker);
     push(&mut cat, "slaughter", "piano", 60, slaughter::piano::piano);
     push(&mut cat, "slaughter", "tenor-sax", 57, slaughter::saxophone::tenor_sax);
     push(&mut cat, "slaughter", "alto-sax", 60, slaughter::saxophone::alto_sax);
@@ -105,6 +100,12 @@ fn main() {
     let pluck_vars: [&str; 2] = ["warm","picked"];
     let trumpet_vars: [&str; 5] = ["1","2","3","4","5"];
     let brass_vars: [&str; 2] = ["fat-low","cinematic-swell"];
+    let kick_vars: [&str; 3] = ["deep","tight","gated"];
+    let snare_vars: [&str; 4] = ["trap","soft","roomy","shaker"];
+    let closed_hat_vars: [&str; 2] = ["dark","openish"];
+    let tom_vars: [&str; 3] = ["floor","rototom","gated"];
+    let rim_vars: [&str; 2] = ["ting","damped"];
+    let clap_vars: [&str; 3] = ["tight","roomy","soft"];
     let piano_vars: [&str; 10] = ["1","2","3","4","5","6","7","8","9","10"];
     let sax_vars: [&str; 10] = ["1","2","3","4","5","6","7","8","9","10"];
     let clarinet_vars: [&str; 4] = ["dark","vibrato","legato","ballad"];
@@ -154,6 +155,25 @@ fn main() {
     let slaughter_brasses = [
         slaughter::brass::brass_fat_low, slaughter::brass::brass_cinematic_swell,
     ];
+    let slaughter_kicks = [
+        slaughter::drums::kick_deep, slaughter::drums::kick_tight, slaughter::drums::kick_gated,
+    ];
+    let slaughter_snares = [
+        slaughter::drums::snare_trap, slaughter::drums::snare_soft, slaughter::drums::snare_roomy,
+        slaughter::drums::snare_shaker,
+    ];
+    let slaughter_toms = [
+        slaughter::drums::tom_floor, slaughter::drums::tom_rototom, slaughter::drums::tom_gated,
+    ];
+    let slaughter_rims = [
+        slaughter::drums::rim_ting, slaughter::drums::rim_damped,
+    ];
+    let slaughter_claps = [
+        slaughter::drums::clap_tight, slaughter::drums::clap_roomy, slaughter::drums::clap_soft,
+    ];
+    let falcon_closed_hats = [
+        falcon::drums::closed_hat_dark, falcon::drums::closed_hat_openish,
+    ];
 
     push_vars(&mut cat, "falcon", "flute", 60, &flute_vars, &falcon_flutes);
     push_vars(&mut cat, "falcon", "piano", 60, &piano_vars, &falcon_pianos);
@@ -165,6 +185,12 @@ fn main() {
     push_vars(&mut cat, "slaughter", "sax", 60, &sax_vars, &slaughter_saxes);
     push_vars(&mut cat, "slaughter", "trumpet", 57, &trumpet_vars, &slaughter_trumpets);
     push_vars(&mut cat, "slaughter", "brass", 57, &brass_vars, &slaughter_brasses);
+    push_vars(&mut cat, "slaughter", "kick", 36, &kick_vars, &slaughter_kicks);
+    push_vars(&mut cat, "slaughter", "snare", 38, &snare_vars, &slaughter_snares);
+    push_vars(&mut cat, "slaughter", "tom", 45, &tom_vars, &slaughter_toms);
+    push_vars(&mut cat, "slaughter", "rim", 37, &rim_vars, &slaughter_rims);
+    push_vars(&mut cat, "slaughter", "clap", 39, &clap_vars, &slaughter_claps);
+    push_vars(&mut cat, "falcon", "closed-hat", 42, &closed_hat_vars, &falcon_closed_hats);
 
     println!("rendering {} patches to {}", cat.len(), out_dir.display());
 

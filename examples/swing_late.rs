@@ -36,14 +36,9 @@ fn groove(grid: &Grid, bar: i64, p: &mut Parts) {
     // Tick on the downbeats, splashy opens on "2&" and "4&".
     on_off(&mut p.hat_c, grid, bar, 0, 1, HAT_CLOSED, 40);
     on_off(&mut p.hat_c, grid, bar, 4, 1, HAT_CLOSED, 36);
-    on_off(&mut p.hat_o, grid, bar, 3, 1, HAT_OPEN, 62);
-    on_off(&mut p.hat_o, grid, bar, 7, 1, HAT_OPEN, 52);
     // Soft shaker brush.
     on_off(&mut p.shake, grid, bar, 3, 1, SHAKER, 44);
     on_off(&mut p.shake, grid, bar, 7, 1, SHAKER, 40);
-    if bar == 8 {
-        on_off(&mut p.crash, grid, bar, 0, 3, CRASH, 60);
-    }
 }
 
 fn bass_line(grid: &Grid, bar: i64, p: &mut Parts) {
@@ -158,8 +153,6 @@ fn main() {
         Placed { name: "kick", events: p.kick, dev: drums::kick() },
         Placed { name: "snare", events: p.snare, dev: drums::snare() },
         Placed { name: "hat_c", events: p.hat_c, dev: drums::closed_hat() },
-        Placed { name: "hat_o", events: p.hat_o, dev: drums::open_hat() },
-        Placed { name: "crash", events: p.crash, dev: drums::crash() },
         Placed { name: "shake", events: p.shake, dev: drums::shaker() },
         Placed { name: "piano", events: p.piano, dev: piano::piano() },
         Placed { name: "flute", events: p.flute, dev: flute::flute_soft() },

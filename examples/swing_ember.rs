@@ -20,7 +20,6 @@ const CHORDS: [Chord; 16] = [
 ];
 
 fn groove(grid: &Grid, bar: i64, p: &mut Parts) {
-    let sec = bar / 4;
     // Half-time: two kicks a bar, backbeat on 3.
     on_off(&mut p.kick, grid, bar, 0, 1, KICK, 96);
     on_off(&mut p.kick, grid, bar, 4, 1, KICK, 82);
@@ -31,15 +30,8 @@ fn groove(grid: &Grid, bar: i64, p: &mut Parts) {
         let vel = if e % 2 == 0 { 52 } else { 74 };
         on_off(&mut p.hat_c, grid, bar, e, 1, HAT_CLOSED, vel);
     }
-    if sec >= 1 {
-        on_off(&mut p.hat_o, grid, bar, 3, 1, HAT_OPEN, 66);
-        on_off(&mut p.hat_o, grid, bar, 7, 1, HAT_OPEN, 66);
-    }
     on_off(&mut p.shake, grid, bar, 3, 1, SHAKER, 58);
     on_off(&mut p.shake, grid, bar, 7, 1, SHAKER, 58);
-    if bar == 0 || bar == 8 || bar == 12 {
-        on_off(&mut p.crash, grid, bar, 0, 2, CRASH, 68);
-    }
 }
 
 fn bass_line(grid: &Grid, bar: i64, p: &mut Parts) {
@@ -140,8 +132,6 @@ fn main() {
         Placed { name: "kick", events: p.kick, dev: drums::kick() },
         Placed { name: "snare", events: p.snare, dev: drums::snare() },
         Placed { name: "hat_c", events: p.hat_c, dev: drums::closed_hat() },
-        Placed { name: "hat_o", events: p.hat_o, dev: drums::open_hat() },
-        Placed { name: "crash", events: p.crash, dev: drums::crash() },
         Placed { name: "shake", events: p.shake, dev: drums::shaker() },
         Placed { name: "piano", events: p.piano, dev: piano::piano() },
         Placed { name: "flute", events: p.flute, dev: flute::flute_soft() },

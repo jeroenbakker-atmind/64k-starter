@@ -121,8 +121,6 @@ fn main() {
         Placed { name: "kick", events: p.kick, dev: drums::kick() },
         Placed { name: "snare", events: p.snare, dev: drums::snare() },
         Placed { name: "hat_c", events: p.hat_c, dev: drums::closed_hat() },
-        Placed { name: "hat_o", events: p.hat_o, dev: drums::open_hat() },
-        Placed { name: "crash", events: p.crash, dev: drums::crash() },
         Placed { name: "shake", events: p.shake, dev: drums::shaker() },
         Placed { name: "piano", events: p.piano, dev: piano::piano() },
         Placed { name: "flute", events: p.flute, dev: flute::flute_bright() },

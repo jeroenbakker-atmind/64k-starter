@@ -66,8 +66,6 @@ struct Parts {
     kick: Vec<MidiEvent>,
     snare: Vec<MidiEvent>,
     hat_c: Vec<MidiEvent>,
-    hat_o: Vec<MidiEvent>,
-    crash: Vec<MidiEvent>,
     shake: Vec<MidiEvent>,
     flute: Vec<MidiEvent>,
     sax: Vec<MidiEvent>,
@@ -308,8 +306,6 @@ fn brass_section(grid: &Grid, bar: i64, p: &mut Parts) {
                 note_on_off_h(&mut p.sax, grid, bar, 7, 4, n, 110);
             }
             note_on_off_h(&mut p.flute, grid, bar, 7, 4, 74, 96);
-            note_on_off(&mut p.crash, grid, bar, 7, 4, 49, 100);
-            note_on_off(&mut p.hat_o, grid, bar, 7, 4, 46, 100);
             note_on_off_h(&mut p.bass, grid, bar, 7, 4, 50, 92);
         }
         _ => {}
@@ -499,8 +495,6 @@ fn main() {
         kick: Vec::new(),
         snare: Vec::new(),
         hat_c: Vec::new(),
-        hat_o: Vec::new(),
-        crash: Vec::new(),
         shake: Vec::new(),
         flute: Vec::new(),
         sax: Vec::new(),
@@ -527,9 +521,9 @@ fn main() {
             fill_bar(&grid, bar, &mut p);
         }
 
-        // Crashes marking the verse, chorus, and outro downbeats.
+        // Snare accents marking the verse, chorus, and outro downbeats.
         if bar == 4 || bar == 16 || bar == 28 {
-            note_on_off(&mut p.crash, &grid, bar, 0, 2, 49, 80);
+            note_on_off(&mut p.snare, &grid, bar, 0, 2, 38, 80);
         }
 
         // Bass: walk-downs on the fresh middle-section bars, sparse in the
@@ -606,8 +600,6 @@ fn main() {
         (p.kick, drums::kick()),
         (p.snare, drums::snare()),
         (p.hat_c, drums::closed_hat()),
-        (p.hat_o, drums::open_hat()),
-        (p.crash, drums::crash()),
         (p.shake, drums::shaker()),
         (p.flute, flute::flute()),
         (p.sax, saxophone::tenor_sax()),

@@ -31,15 +31,8 @@ fn groove(grid: &Grid, bar: i64, p: &mut Parts) {
     for e in 0..8 {
         on_off(&mut p.hat_c, grid, bar, e, 1, HAT_CLOSED, if e % 2 == 0 { 50 } else { 72 });
     }
-    if sec >= 1 {
-        on_off(&mut p.hat_o, grid, bar, 3, 1, HAT_OPEN, 64);
-        on_off(&mut p.hat_o, grid, bar, 7, 1, HAT_OPEN, 68);
-    }
     on_off(&mut p.shake, grid, bar, 3, 1, SHAKER, 56);
     on_off(&mut p.shake, grid, bar, 7, 1, SHAKER, 56);
-    if bar == 0 {
-        on_off(&mut p.crash, grid, bar, 0, 2, CRASH, 64);
-    }
 }
 
 fn bass_line(grid: &Grid, bar: i64, p: &mut Parts) {
@@ -140,8 +133,6 @@ fn main() {
         Placed { name: "kick", events: p.kick, dev: drums::kick() },
         Placed { name: "snare", events: p.snare, dev: drums::snare() },
         Placed { name: "hat_c", events: p.hat_c, dev: drums::closed_hat() },
-        Placed { name: "hat_o", events: p.hat_o, dev: drums::open_hat() },
-        Placed { name: "crash", events: p.crash, dev: drums::crash() },
         Placed { name: "shake", events: p.shake, dev: drums::shaker() },
         Placed { name: "piano", events: p.piano, dev: piano::piano() },
         Placed { name: "flute", events: p.flute, dev: flute::flute_bright() },

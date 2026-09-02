@@ -4,9 +4,7 @@
 1: kick
 2: snare
 3: hat_c
-4: hat_o
-5: crash
-6: shake
-7: piano
-8: flute
-9: sax
+4: shake
+5: piano
+6: flute
+7: sax

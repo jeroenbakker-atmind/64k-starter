@@ -5,7 +5,7 @@
 //! Usage: `cargo run --release --example swing_dune -- [--out <path>]`
 
 
-use starter::instruments::{falcon, slaughter};
+use starter::instruments::{drums, falcon, slaughter};
 use starter::swingkit::*;
 
 const BPM: f64 = 76.0;
@@ -131,9 +131,7 @@ fn main() {
         Placed { name: "kick", events: p.kick, dev: slaughter::drums::kick() },
         Placed { name: "snare", events: p.snare, dev: slaughter::drums::snare() },
         Placed { name: "hat_c", events: p.hat_c, dev: slaughter::drums::closed_hat() },
-        Placed { name: "hat_o", events: p.hat_o, dev: slaughter::drums::open_hat() },
-        Placed { name: "crash", events: p.crash, dev: slaughter::drums::crash() },
-        Placed { name: "shake", events: p.shake, dev: slaughter::drums::shaker() },
+        Placed { name: "shake", events: p.shake, dev: drums::shaker() },
         Placed { name: "piano", events: p.piano, dev: slaughter::piano::piano() },
         Placed { name: "flute", events: p.flute, dev: falcon::flute::flute_bright() },
         Placed { name: "sax", events: p.sax, dev: slaughter::saxophone::tenor_sax() },

@@ -18,6 +18,7 @@ pub const TAIL_SECS: f64 = 2.5;
 // root). Electro swing leans on minor-seventh and dominant-seventh colours,
 // so the whole kit stays in the D-blues / relative-minor family.
 // ---------------------------------------------------------------------------
+
 pub type Chord = (i32, [i32; 4]);
 
 pub const MIN7: [i32; 4] = [0, 3, 7, 10];
@@ -41,8 +42,6 @@ pub struct Parts {
     pub kick: Vec<MidiEvent>,
     pub snare: Vec<MidiEvent>,
     pub hat_c: Vec<MidiEvent>,
-    pub hat_o: Vec<MidiEvent>,
-    pub crash: Vec<MidiEvent>,
     pub shake: Vec<MidiEvent>,
     pub bass: Vec<MidiEvent>,
     pub piano: Vec<MidiEvent>,
@@ -59,8 +58,6 @@ impl Parts {
 pub const KICK: u8 = 36;
 pub const SNARE: u8 = 38;
 pub const HAT_CLOSED: u8 = 42;
-pub const HAT_OPEN: u8 = 46;
-pub const CRASH: u8 = 49;
 pub const SHAKER: u8 = 54;
 
 // ---------------------------------------------------------------------------
